@@ -54,6 +54,7 @@ Design Goals:
 
 ## Architectural Direction (Planned)
 
+- Game design documentation is maintained under `docs/`.
 - Modular Lua organized by domain (`core`, `entities`, `systems`, etc.).
 - Data-first content pipeline under `src/data/`.
 - Extensible systems suitable for puzzle mechanics + roguelite meta layers.
