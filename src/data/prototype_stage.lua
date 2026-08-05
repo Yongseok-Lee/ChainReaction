@@ -1,7 +1,12 @@
--- Prototype 0.1 stage definition (data-only).
+-- Prototype 0.3 stage definition (data-only, immutable).
 
 local stage = {
-  chain = { "spark", "fuel", "bomb" },
+  initialSlots = {
+    { objectKey = "spark" },
+    { objectKey = nil },
+    { objectKey = "fuel" },
+    { objectKey = "bomb" },
+  },
   targetDamage = 2,
 }
 

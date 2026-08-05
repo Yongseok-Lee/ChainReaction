@@ -91,8 +91,9 @@ end
 ---Runs one deterministic reaction simulation.
 ---@param stageDef table
 ---@param objectDefs table
+---@param runtimeSlots table
 ---@return table result
-function M.simulate(stageDef, objectDefs)
+function M.simulate(stageDef, objectDefs, runtimeSlots)
   local state = {
     rv = 0,
     damage = 0,
@@ -101,10 +102,10 @@ function M.simulate(stageDef, objectDefs)
   }
   local log = {}
 
-  if type(stageDef) ~= "table" or type(stageDef.chain) ~= "table" then
+  if type(stageDef) ~= "table" then
     return build_result(false, state, stageDef, log, {
       code = "ERR_INVALID_STAGE",
-      note = "stageDef.chain must be a table.",
+      note = "stageDef must be a table.",
     })
   end
 
@@ -115,66 +116,83 @@ function M.simulate(stageDef, objectDefs)
     })
   end
 
-  for step, object_key in ipairs(stageDef.chain) do
-    local object_def = objectDefs[object_key]
-    if type(object_def) ~= "table" then
-      return build_result(false, state, stageDef, log, {
-        code = "ERR_UNKNOWN_OBJECT",
-        note = "Object key not found in definitions.",
+  if type(runtimeSlots) ~= "table" then
+    return build_result(false, state, stageDef, log, {
+      code = "ERR_INVALID_SLOTS",
+      note = "runtimeSlots must be a table.",
+    })
+  end
+
+  local step = 0
+  for slot_index, slot in ipairs(runtimeSlots) do
+    local object_key = type(slot) == "table" and slot.objectKey or nil
+    if object_key ~= nil then
+      step = step + 1
+      local object_def = objectDefs[object_key]
+      if type(object_def) ~= "table" then
+        return build_result(false, state, stageDef, log, {
+          code = "ERR_UNKNOWN_OBJECT",
+          note = "Object key not found in definitions.",
+          step = step,
+          slotIndex = slot_index,
+          objectKey = object_key,
+        })
+      end
+
+      local attribute = object_def.attribute
+      local handler = ATTRIBUTE_HANDLERS[attribute]
+      if type(handler) ~= "function" then
+        return build_result(false, state, stageDef, log, {
+          code = "ERR_UNSUPPORTED_ATTRIBUTE",
+          note = "No handler exists for object attribute.",
+          step = step,
+          slotIndex = slot_index,
+          objectKey = object_key,
+          attribute = attribute,
+        })
+      end
+
+      local rv_before = state.rv
+      local damage_before = state.damage
+      local ctx = {
         step = step,
-        objectKey = object_key,
-      })
-    end
-
-    local attribute = object_def.attribute
-    local handler = ATTRIBUTE_HANDLERS[attribute]
-    if type(handler) ~= "function" then
-      return build_result(false, state, stageDef, log, {
-        code = "ERR_UNSUPPORTED_ATTRIBUTE",
-        note = "No handler exists for object attribute.",
-        step = step,
-        objectKey = object_key,
-        attribute = attribute,
-      })
-    end
-
-    local rv_before = state.rv
-    local damage_before = state.damage
-    local ctx = {
-      step = step,
-      objectKey = object_key,
-      attribute = attribute,
-      stage = stageDef,
-    }
-    local handler_result = handler(state, object_def.params, ctx)
-    local rv_after = state.rv
-    local damage_after = state.damage
-
-    log[#log + 1] = {
-      step = step,
-      objectKey = object_key,
-      attribute = attribute,
-      rvBefore = rv_before,
-      rvAfter = rv_after,
-      damageBefore = damage_before,
-      damageAfter = damage_after,
-      note = handler_result.note,
-      code = handler_result.code,
-    }
-
-    if not handler_result.ok then
-      return build_result(false, state, stageDef, log, {
-        code = handler_result.code or "ERR_HANDLER",
-        note = handler_result.note or "Attribute handler failed.",
-        step = step,
+        slotIndex = slot_index,
         objectKey = object_key,
         attribute = attribute,
-        meta = handler_result.meta,
-      })
-    end
+        stage = stageDef,
+      }
+      local handler_result = handler(state, object_def.params, ctx)
+      local rv_after = state.rv
+      local damage_after = state.damage
 
-    if state.ended then
-      break
+      log[#log + 1] = {
+        step = step,
+        slotIndex = slot_index,
+        objectKey = object_key,
+        attribute = attribute,
+        rvBefore = rv_before,
+        rvAfter = rv_after,
+        damageBefore = damage_before,
+        damageAfter = damage_after,
+        note = handler_result.note,
+        code = handler_result.code,
+      }
+
+      if not handler_result.ok then
+        return build_result(false, state, stageDef, log, {
+          code = handler_result.code or "ERR_HANDLER",
+          note = handler_result.note or "Attribute handler failed.",
+          step = step,
+          slotIndex = slot_index,
+          objectKey = object_key,
+          attribute = attribute,
+          meta = handler_result.meta,
+        })
+      end
+
+      if state.ended then
+        break
+      end
     end
   end
 
