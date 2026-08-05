@@ -1,9 +1,9 @@
--- Prototype 0.1 debug visualization entry point.
+-- Prototype 0.4 debug visualization entry point.
 
 local RunPrototype = require("src.core.run_prototype")
 
 local App = {
-  result = nil,
+  runtime = nil,
 }
 
 local function to_text(value)
@@ -21,7 +21,7 @@ local function bool_label(value, true_text, false_text)
 end
 
 function love.load()
-  App.result = RunPrototype.run()
+  App.runtime = RunPrototype.new()
 end
 
 function love.update(_dt)
@@ -39,32 +39,70 @@ function love.draw()
     y = y + line_height
   end
 
-  print_line("ChainReaction Prototype 0.1")
+  print_line("ChainReaction Prototype 0.4")
+  print_line("Controls: Left/Right select | Up/Down cycle object | Del clear")
+  print_line("          S mark/swap slots | R reset slots | Space run simulation")
   print_line("")
 
-  if not App.result then
-    print_line("Result: nil")
+  if not App.runtime then
+    print_line("Runtime: nil")
     return
   end
 
-  print_line("Success: " .. bool_label(App.result.success, "Success", "Failure"))
-  print_line("Cleared: " .. bool_label(App.result.cleared, "Cleared", "Failed"))
-  print_line("Final RV: " .. to_text(App.result.finalRV))
-  print_line("Damage: " .. to_text(App.result.damage))
+  local view = App.runtime:getState()
+  print_line("Target Damage: " .. to_text(view.targetDamage))
+  print_line("Selected Slot: " .. to_text(view.selectedSlotIndex))
+  print_line("Swap Source: " .. to_text(view.swapSourceIndex))
+  print_line("Available Objects: " .. table.concat(view.objectOrder, ", "))
+  print_line("")
+  print_line("Slots:")
+  for index, slot in ipairs(view.slots) do
+    local marker = " "
+    if view.selectedSlotIndex == index then
+      marker = ">"
+    end
+    local swap_mark = ""
+    if view.swapSourceIndex == index then
+      swap_mark = " [SWAP]"
+    end
+    local object_key = nil
+    if type(slot) == "table" then
+      object_key = slot.objectKey
+    end
+    print_line(string.format(" %s [%d] %s%s", marker, index, to_text(object_key), swap_mark))
+  end
+  print_line("")
+
+  if view.lastError then
+    print_line("Input Error: " .. to_text(view.lastError))
+  else
+    print_line("Input Error: none")
+  end
+  print_line("")
+
+  if not view.result then
+    print_line("Result: not executed (press Space)")
+    return
+  end
+
+  print_line("Success: " .. bool_label(view.result.success, "Success", "Failure"))
+  print_line("Cleared: " .. bool_label(view.result.cleared, "Cleared", "Failed"))
+  print_line("Final RV: " .. to_text(view.result.finalRV))
+  print_line("Damage: " .. to_text(view.result.damage))
 
   local error_text = "none"
-  if App.result.error then
-    if type(App.result.error) == "table" then
-      error_text = to_text(App.result.error.code) .. " - " .. to_text(App.result.error.note)
+  if view.result.error then
+    if type(view.result.error) == "table" then
+      error_text = to_text(view.result.error.code) .. " - " .. to_text(view.result.error.note)
     else
-      error_text = to_text(App.result.error)
+      error_text = to_text(view.result.error)
     end
   end
   print_line("Error: " .. error_text)
   print_line("")
   print_line("Execution Log:")
 
-  local log = App.result.log
+  local log = view.result.log
   if type(log) ~= "table" or #log == 0 then
     print_line("  (empty)")
     return
@@ -82,5 +120,11 @@ function love.draw()
       to_text(entry.damageAfter)
     )
     print_line(summary)
+  end
+end
+
+function love.keypressed(key)
+  if App.runtime then
+    App.runtime:handleKey(key)
   end
 end
