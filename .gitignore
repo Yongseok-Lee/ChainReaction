@@ -1,0 +1,28 @@
+# Love2D save data
+*.sav
+*.save
+
+# Lua bytecode
+*.luac
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test / coverage artifacts
+coverage/
+*.out
+
+# Build artifacts
+dist/
+build/
