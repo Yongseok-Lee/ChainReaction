@@ -1,6 +1,17 @@
--- Prototype 0.9 deterministic reaction simulator.
+-- Prototype 0.95 deterministic reaction simulator.
 
 local M = {}
+local ObjectCatalogValidator = require("src.data.object_catalog_validator")
+
+local SUPPORTED_ATTRIBUTE_KEYS = {
+  ignite = true,
+  amplify = true,
+  store = true,
+  release = true,
+  charge = true,
+  echo = true,
+  explode = true,
+}
 
 local function ok(note, meta)
   return {
@@ -343,105 +354,6 @@ local function build_result(success, state, stage_def, log, error_data)
   }
 end
 
-local function validate_object_attributes(object_def, object_key, slot_index)
-  if type(object_def) ~= "table" then
-    return nil, {
-      code = "ERR_INVALID_OBJECT_DEF",
-      note = "Object definition must be a table.",
-      objectKey = object_key,
-      slotIndex = slot_index,
-    }
-  end
-
-  local attributes = object_def.attributes
-  if type(attributes) ~= "table" then
-    return nil, {
-      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-      note = "Object attributes must be a non-empty ordered table.",
-      objectKey = object_key,
-      slotIndex = slot_index,
-    }
-  end
-
-  local attribute_count = #attributes
-  if attribute_count == 0 then
-    return nil, {
-      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-      note = "Object attributes must be non-empty.",
-      objectKey = object_key,
-      slotIndex = slot_index,
-    }
-  end
-  if attribute_count > 2 then
-    return nil, {
-      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-      note = "Object attributes exceed Prototype 0.8 maximum count of 2.",
-      objectKey = object_key,
-      slotIndex = slot_index,
-    }
-  end
-
-  local seen = {}
-  for attribute_index, entry in ipairs(attributes) do
-    if type(entry) ~= "table" then
-      return nil, {
-        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-        note = "Attribute entry must be a table.",
-        objectKey = object_key,
-        slotIndex = slot_index,
-        attributeIndex = attribute_index,
-      }
-    end
-
-    local key = entry.key
-    if type(key) ~= "string" or key == "" then
-      return nil, {
-        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-        note = "Attribute key must be a non-empty string.",
-        objectKey = object_key,
-        slotIndex = slot_index,
-        attributeIndex = attribute_index,
-      }
-    end
-
-    if type(entry.params) ~= "table" then
-      return nil, {
-        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
-        note = "Attribute params must be a table.",
-        objectKey = object_key,
-        slotIndex = slot_index,
-        attributeIndex = attribute_index,
-        attribute = key,
-      }
-    end
-
-    if seen[key] then
-      return nil, {
-        code = "ERR_DUPLICATE_ATTRIBUTE",
-        note = "Duplicate attribute keys are invalid for one object.",
-        objectKey = object_key,
-        slotIndex = slot_index,
-        attributeIndex = attribute_index,
-        attribute = key,
-      }
-    end
-    seen[key] = true
-
-    if type(ATTRIBUTE_HANDLERS[key]) ~= "function" then
-      return nil, {
-        code = "ERR_UNSUPPORTED_ATTRIBUTE",
-        note = "No handler exists for object attribute.",
-        objectKey = object_key,
-        slotIndex = slot_index,
-        attributeIndex = attribute_index,
-        attribute = key,
-      }
-    end
-  end
-
-  return attributes, nil
-end
-
 ---Runs one deterministic reaction simulation.
 ---@param stageDef table
 ---@param objectDefs table
@@ -485,6 +397,15 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
     })
   end
 
+  local catalog_validation = ObjectCatalogValidator.validateCatalog(objectDefs, SUPPORTED_ATTRIBUTE_KEYS)
+  if not catalog_validation.ok then
+    local first_error = catalog_validation.errors[1] or {
+      code = "ERR_INVALID_OBJECTS",
+      note = "Object catalog validation failed.",
+    }
+    return build_result(false, state, stageDef, log, first_error)
+  end
+
   local step = 0
   for slot_index, slot in ipairs(runtimeSlots) do
     local object_key = type(slot) == "table" and slot.objectKey or nil
@@ -499,11 +420,7 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
         })
       end
 
-      local attributes, object_validation_error =
-        validate_object_attributes(object_def, object_key, slot_index)
-      if object_validation_error then
-        return build_result(false, state, stageDef, log, object_validation_error)
-      end
+      local attributes = object_def.attributes
 
       local attribute_count = #attributes
       for attribute_index, attribute_entry in ipairs(attributes) do
@@ -514,6 +431,17 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
         step = step + 1
         local attribute_key = attribute_entry.key
         local handler = ATTRIBUTE_HANDLERS[attribute_key]
+        if type(handler) ~= "function" then
+          return build_result(false, state, stageDef, log, {
+            code = "ERR_UNSUPPORTED_ATTRIBUTE",
+            note = "No handler exists for object attribute.",
+            step = step,
+            slotIndex = slot_index,
+            objectKey = object_key,
+            attributeIndex = attribute_index,
+            attribute = attribute_key,
+          })
+        end
         local rv_before = state.rv
         local stored_before = state.storedRV
         local damage_before = state.damage

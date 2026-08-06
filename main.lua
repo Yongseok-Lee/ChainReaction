@@ -91,15 +91,39 @@ function love.draw()
   print_line("Final Reaction State: " .. to_text(view.result.finalReactionState))
   print_line("Damage: " .. to_text(view.result.damage))
 
+  local error_context_lines = nil
   local error_text = "none"
   if view.result.error then
     if type(view.result.error) == "table" then
       error_text = to_text(view.result.error.code) .. " - " .. to_text(view.result.error.note)
+      error_context_lines = {}
+      local context_fields = {
+        "objectKey",
+        "field",
+        "attributeIndex",
+        "availableOrderIndex",
+        "dualPairKey",
+        "slotIndex",
+        "step",
+        "attribute",
+      }
+      for _, field_name in ipairs(context_fields) do
+        local value = view.result.error[field_name]
+        if value ~= nil then
+          error_context_lines[#error_context_lines + 1] =
+            string.format("  %s: %s", field_name, to_text(value))
+        end
+      end
     else
       error_text = to_text(view.result.error)
     end
   end
   print_line("Error: " .. error_text)
+  if type(error_context_lines) == "table" then
+    for _, line in ipairs(error_context_lines) do
+      print_line(line)
+    end
+  end
   print_line("")
   print_line("Execution Log:")
 
