@@ -1,236 +1,503 @@
-# 로그라이트 퍼즐 게임 기획 문서 v0.1
+# ChainReaction - Gameplay Design v1.0
 
-## 1. 게임 핵심 컨셉
-
-하나의 Spark(점화)에서 시작해 제한된 슬롯에 반응 오브젝트를 배치하고, 연쇄 반응을 설계하여 여러 Explosion(Bomb)의 총 반응량(데미지)을 목표 이상으로 만드는 로그라이트 퍼즐 게임.
-
-핵심 재미:
-
-- 많은 콘텐츠를 추가하는 것이 아니라 적은 규칙이 서로 상호작용하도록 설계
-- 플레이어는 "오브젝트를 사용하는 것"이 아니라 "반응 회로를 설계하는 것"
+> This document is the Single Source of Truth (SSOT) for gameplay design.
+> If implementation conflicts with this document, this document takes precedence.
 
 ---
 
-# 2. 기본 게임 루프
+# 1. Core Concept
 
-## 스테이지 시작
+ChainReaction is a puzzle roguelite where the player designs a reaction circuit.
 
-각 스테이지에는:
+The player begins with a single Spark, places reaction objects into limited slots, and attempts to produce enough total damage to clear the stage.
 
-- 클리어 목표 반응량(데미지)
-- 플레이어가 보유한 오브젝트
-- 사용할 수 있는 슬롯 수
+The goal is not to use objects individually, but to design an efficient reaction circuit through the interaction of simple mechanics.
 
-가 존재한다.
+Core philosophy:
+
+- Small rule set
+- High interaction between mechanics
+- Deterministic simulation
+- Emergent gameplay through combinations
 
 ---
 
-## 회로 설계
+# 2. Core Gameplay Loop
 
-기본 구조:
+Stage Start
+
+↓
+
+Design Circuit
+
+↓
+
+Run Simulation
+
+↓
+
+Calculate Damage
+
+↓
+
+Clear / Fail
+
+↓
+
+Choose Reward
+
+↓
+
+Next Stage
+
+---
+
+## Stage Information
+
+Each stage provides:
+
+- Target Damage
+- Available Objects
+- Number of Slots
+
+---
+
+## Circuit Structure
+
+Basic prototype:
 
 Spark
+
 ↓
-[슬롯]
+
+[Slot]
+
 ↓
-[슬롯]
+
+[Slot]
+
 ↓
-[슬롯]
+
+...
+
 ↓
+
 Bomb
 
-플레이어는 보유한 오브젝트를 슬롯에 배치한다.
-
-목표:
-
-- Spark에서 시작
-- 중간 과정에서 반응량을 최대한 증가/변형
-- 마지막에는 Explode 속성을 가진 Bomb로 종료
+The player fills slots with reaction objects.
 
 ---
 
-## 실행
+## Simulation
 
-플레이어가 Ignite를 실행하면 자동으로 연쇄 반응 진행.
+Once the player starts the reaction:
 
-결과:
+- Ignite starts the reaction.
+- Objects activate sequentially.
+- Each object modifies the reaction state.
+- Bomb converts the final reaction into damage.
 
-Bomb 1 데미지
-
-- Bomb 2 데미지
-- Bomb 3 데미지
-
-=
-총 반응량
-
-목표치를 넘으면 스테이지 클리어.
+If total damage reaches the stage target, the stage is cleared.
 
 ---
 
-# 3. 로그라이트 성장
+# 3. Roguelite Progression
 
-스테이지 클리어 후 보상 선택.
+After clearing a stage, the player chooses one reward.
 
-예:
+Examples:
 
-- 슬롯 증가
-- 새로운 오브젝트 획득
-- 기존 오브젝트 강화
-- 새로운 조합 해금
+- Increase slot count
+- Obtain new object
+- Upgrade existing object
+- Unlock new object combinations
 
-초기에는 짧은 회로만 가능하지만,
-성장할수록 긴 회로와 분기 구조를 만들 수 있음.
+Progression expands the player's design space rather than increasing raw numbers.
 
 ---
 
-# 4. 핵심 물리량: Reaction Value (RV)
+# 4. Core Resources
 
-모든 반응은 반응량(RV)을 가진다.
+The simulation currently uses two reaction resources.
 
-Spark가 생성하는 초기 RV:
+## Reaction Value (RV)
+
+The active reaction value flowing through the circuit.
+
+Example:
+
+Spark
+
+↓
 
 RV = 1
 
-모든 속성은 RV를 조작한다.
+Most reaction objects manipulate RV.
 
 ---
 
-# 5. 속성 시스템 (현재 확정)
+## Stored Reaction Value (StoredRV)
+
+Reaction value stored by Store.
+
+StoredRV remains separate from active RV until other attributes interact with it.
+
+Exact interactions with StoredRV depend on active attribute rules.
+
+---
+
+# 5. Core Attribute Roles
+
+The gameplay is built around seven core attribute roles.
+
+---
 
 ## Ignite
 
-역할:
-반응 시작
+Purpose:
 
-예:
-Spark → RV 1 생성
+Start a reaction.
 
----
+Example:
 
-## Explode
+Spark
 
-역할:
-반응량을 데미지로 변환
+↓
 
-예:
-RV 50 → Explosion Damage 50
-
-폭발 시 해당 RV는 소비됨.
+RV = 1
 
 ---
 
 ## Amplify
 
-역할:
-반응량 증가
+Purpose:
 
-예:
-RV 10 → RV 20
+Increase the current RV.
+
+Example:
+
+RV 5
+
+↓
+
+RV 10
 
 ---
 
 ## Store
 
-역할:
-반응량 축적
+Purpose:
 
-예:
+Store reaction value for later use.
 
-RV 10 저장
-
-- RV 20 저장
-
-=
-Stored RV 30
-
-이후 Explode 등에 사용.
 
 ---
 
-## Split
+## Release
 
-역할:
-반응 분기
+Purpose:
 
-예:
+Move StoredRV back into RV.
 
-RV 10
-
-↓
-
-RV 5
-RV 5
-
-기본적으로 복제가 아니라 분배.
+The exact behavior is intentionally left unresolved during Prototype 0.x.
 
 ---
 
 ## Convert
 
-역할:
-반응 성질 변경
+Purpose:
 
-RV 자체는 유지.
+Change the property of a reaction without changing its value.
 
-예:
-Fire → Ice
+The reaction property system is intentionally undefined during Prototype 0.x.
 
 ---
 
 ## Echo
 
-역할:
-동일 반응 반복
+Purpose:
 
-예:
+Repeat a reaction effect.
 
-Explosion 1회
+The exact repetition targets, timing, and interaction rules are intentionally unresolved during Prototype 0.x.
+
+---
+
+## Explode
+
+Purpose:
+
+Converts the final reaction state into damage.
+
+The exact damage calculation depends on participating attributes.
+
+Explosion consumes the reaction.
+
+---
+
+# 6. Core Objects
+
+## Single-Attribute Base Objects
+
+| Object   | Attribute |
+| -------- | --------- |
+| Spark    | Ignite    |
+| Fuel     | Amplify   |
+| Crystal  | Store     |
+| Valve    | Release   |
+| Catalyst | Convert   |
+| Mirror   | Echo      |
+| Bomb     | Explode   |
+
+## Dual-Attribute Upgraded Objects (Ordered Execution)
+
+1. Flare - Ignite -> Amplify
+2. Ember Core - Ignite -> Store
+3. Primer - Ignite -> Release
+4. Arc Spark - Ignite -> Convert
+5. Resonant Spark - Ignite -> Echo
+6. Detonator - Ignite -> Explode
+7. Capacitor - Amplify -> Store
+8. Turbine - Release -> Amplify
+9. Reactor - Convert -> Amplify
+10. Resonator - Amplify -> Echo
+11. Warhead - Amplify -> Explode
+12. Accumulator - Store -> Release
+13. Prismatic Crystal - Convert -> Store
+14. Memory Crystal - Store -> Echo
+15. Charge Mine - Store -> Explode
+16. Converter Valve - Release -> Convert
+17. Pulse Valve - Release -> Echo
+18. Pressure Bomb - Release -> Explode
+19. Kaleidoscope - Convert -> Echo
+20. Elemental Bomb - Convert -> Explode
+21. Cluster Bomb - Explode -> Echo
+
+---
+
+# 7. Core Object Framework
+
+The core object catalog is fixed by attribute combinations.
+
+- 7 single-attribute base objects
+- 21 unique dual-attribute upgraded objects
+- 28 total core objects
+
+Dual combinations are unordered for catalog uniqueness.
+
+- Amplify + Store and Store + Amplify are the same catalog combination.
+
+Each dual-attribute object has one explicit internal execution order.
+
+- Attribute execution order must be stored as ordered data.
+
+## Upgrade Path Convergence
+
+A single-attribute object can gain one of the other six attributes.
+
+Symmetric upgrade paths converge on the same dual object.
+
+Upgrading either parent base object may lead to the same dual-attribute result.
+
+Example:
+
+- Fuel + Store -> Capacitor
+- Crystal + Amplify -> Capacitor
+
+---
+
+# 8. Design Principles
+
+The project follows these principles.
+
+## Small Mechanics
+
+Simple mechanics should create complex interactions.
+
+---
+
+## Deterministic Simulation
+
+The same input must always produce the same output.
+
+No randomness exists inside the reaction simulation itself.
+
+---
+
+## Data-Driven Design
+
+Objects should primarily contain data.
+
+Simulation rules belong to the simulator.
+
+---
+
+## Separation of Responsibility
+
+Stage Definition
 
 ↓
 
-Explosion 추가 발생
+Slot Manager
+
+↓
+
+Reaction Simulator
+
+↓
+
+Result
+
+Each system owns only its own responsibility.
 
 ---
 
-# 6. 기본 오브젝트
+## Prototype First
 
-| 오브젝트 | 속성    |
-| -------- | ------- |
-| Spark    | Ignite  |
-| Bomb     | Explode |
-| Fuel     | Amplify |
-| Crystal  | Store   |
-| Prism    | Split   |
-| Catalyst | Convert |
-| Mirror   | Echo    |
+Validate gameplay before expanding content.
+
+New mechanics are added only after the existing ones prove fun.
 
 ---
 
-# 7. 설계 방향
+# 9. Current Prototype Scope
 
-7개의 속성으로 먼저 프로토타입 제작.
+Implemented:
 
-2속성 조합 오브젝트와 업그레이드는 이후 확장.
+- Runtime Slot Manager
+- Keyboard Slot Editing
+- Ignite
+- Amplify
+- Store
+- Explode
+- Deterministic Simulation
+- Runtime Slot Snapshot
 
-중요한 것은 콘텐츠 양이 아니라:
+Currently In Progress:
 
-- Ignite → 가공 → Explode
-- RV 증가/저장/분배/반복
-- 슬롯 제한
+- Release
 
-이라는 핵심 시스템이 재미있는지 검증하는 것.
+Planned:
+
+- Convert
+- Echo
 
 ---
 
-# 8. 개발 우선순위
+# 10. Postponed Mechanics
 
-1. 슬롯 시스템 구현
-2. 오브젝트 배치 시스템 구현
-3. Spark → Bomb까지 반응 흐름 구현
-4. RV 계산 시스템 구현
-5. 기본 7개 속성 구현
-6. 스테이지 목표/클리어 조건 구현
-7. 로그라이트 보상 시스템 추가
+## Split
 
-목표:
-작은 프로토타입으로 "반응 회로를 설계하는 재미" 검증.
+Status:
+
+Postponed.
+
+Reason:
+
+Split rule specifications are not finalized.
+
+Proper Split requires:
+
+- A finalized gameplay rule specification
+- Deterministic interaction rules with Store, Release, and Explode
+- Clear catalog placement relative to the seven core attributes
+
+Those decisions are intentionally postponed until the core seven-attribute framework is validated.
+
+Split will be reconsidered after the linear reaction system is fully validated.
+
+---
+
+# 11. Development Roadmap
+
+Current priority:
+
+1. Finalize Release rule specification
+2. Implement and test Release
+3. Finalize Convert rule specification
+4. Implement and test Convert
+5. Finalize Echo rule specification
+6. Implement and test Echo
+7. Add generic ordered multi-attribute object support
+8. Introduce the 21 dual-attribute objects gradually
+
+---
+
+# 12. Design Decisions
+
+## Core Attribute Roles
+
+The seven core roles are fixed:
+
+- Ignite
+- Amplify
+- Store
+- Release
+- Convert
+- Echo
+- Explode
+
+---
+
+## Core Object Strategy
+
+Content expansion is based on attribute combinations.
+
+Target:
+
+- 7 single-attribute objects
+- 21 dual-attribute objects
+- 28 total core objects
+
+Dual-attribute execution order is explicit and data-driven.
+
+Split remains postponed.
+
+Gate and Delay are not part of the seven core attributes.
+
+---
+
+## Simulation Philosophy
+
+The simulator should remain:
+
+- Deterministic
+- Data-driven
+- Easy to debug
+- Easy to extend
+
+Gameplay depth should emerge from the interaction of simple systems rather than increasingly complex rules.
+
+---
+
+# 13. Unresolved Rule Specifications
+
+The following items are unresolved and must not be treated as finalized:
+
+- Exact Release rules and edge cases
+- Convert property/type system
+- Echo target and repetition rules
+- Whether Ignite can occur more than once
+- How Explode + Echo works with reaction termination
+- Whether upgrades are permanent, run-based, or object-instance based
+- Exact numerical balance values
+
+---
+
+# 14. Design Stability
+
+The following are considered stable unless a major redesign occurs:
+
+- Core gameplay loop
+- Seven core attribute roles
+- 28 core object framework
+- Deterministic simulation
+- Data-driven architecture
+
+The following are intentionally expected to evolve during prototyping:
+
+- Individual attribute rules
+- Numerical balance
+- Upgrade rules
+- Future mechanics
+- Object parameter tuning
