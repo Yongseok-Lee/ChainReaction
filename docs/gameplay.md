@@ -212,13 +212,24 @@ For full details, reference:
 
 ---
 
-## Convert
+## Charge
 
 Purpose:
 
-Change the property of a reaction without changing its value.
+Prepare the next eligible reaction attribute for a one-time efficiency bonus.
 
-The reaction property system is intentionally undefined during Prototype 0.x.
+Rules:
+
+- Charge sets the reaction state to Charged.
+- Charge is idempotent.
+- Charge does not directly modify RV, StoredRV, or damage.
+- Charged is consumed by the next eligible Amplify, Store, or Explode.
+- Ignite and Release do not consume Charged.
+- Exact efficiency values remain balance parameters.
+
+Reference:
+
+`docs/attributes/charge.md`
 
 ---
 
@@ -254,7 +265,7 @@ Explosion consumes the reaction.
 | Fuel     | Amplify   |
 | Crystal  | Store     |
 | Valve    | Release   |
-| Catalyst | Convert   |
+| Catalyst | Charge    |
 | Mirror   | Echo      |
 | Bomb     | Explode   |
 
@@ -263,24 +274,27 @@ Explosion consumes the reaction.
 1. Flare - Ignite -> Amplify
 2. Ember Core - Ignite -> Store
 3. Primer - Ignite -> Release
-4. Arc Spark - Ignite -> Convert
+4. Arc Spark - Ignite -> Charge
 5. Resonant Spark - Ignite -> Echo
 6. Detonator - Ignite -> Explode
 7. Capacitor - Amplify -> Store
 8. Turbine - Release -> Amplify
-9. Reactor - Convert -> Amplify
+9. Reactor - Charge -> Amplify
 10. Resonator - Amplify -> Echo
 11. Warhead - Amplify -> Explode
 12. Accumulator - Store -> Release
-13. Prismatic Crystal - Convert -> Store
+13. Prismatic Crystal - Charge -> Store
 14. Memory Crystal - Store -> Echo
-15. Charge Mine - Store -> Explode
-16. Converter Valve - Release -> Convert
+15. Reservoir Bomb - Store -> Explode
+16. Converter Valve - Release -> Charge
 17. Pulse Valve - Release -> Echo
 18. Pressure Bomb - Release -> Explode
-19. Kaleidoscope - Convert -> Echo
-20. Elemental Bomb - Convert -> Explode
+19. Kaleidoscope - Charge -> Echo
+20. Elemental Bomb - Charge -> Explode
 21. Cluster Bomb - Explode -> Echo
+
+Object names are provisional until the visual theme and world setting are finalized.
+Attribute combinations and execution order are the stable design.
 
 ---
 
@@ -378,21 +392,22 @@ Implemented:
 - Ignite
 - Amplify
 - Store
+- Release
 - Explode
 - Deterministic Simulation
 - Runtime Slot Snapshot
 
-Finalized Specification:
+Finalized Specifications:
 
 - Release
+- Charge
 
 Pending Implementation:
 
-- Release
+- Charge
 
 Planned:
 
-- Convert
 - Echo
 
 ---
@@ -425,13 +440,11 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Implement and test Release according to docs/attributes/release.md
-2. Finalize Convert rule specification
-3. Implement and test Convert
-4. Finalize Echo rule specification
-5. Implement and test Echo
-6. Add generic ordered multi-attribute object support
-7. Introduce the 21 dual-attribute objects gradually
+1. Implement and test Charge
+2. Finalize Echo rule specification
+3. Implement and test Echo
+4. Add generic ordered multi-attribute object support
+5. Introduce dual-attribute objects gradually
 
 ---
 
@@ -445,7 +458,7 @@ The seven core roles are fixed:
 - Amplify
 - Store
 - Release
-- Convert
+- Charge
 - Echo
 - Explode
 
@@ -469,6 +482,22 @@ Gate and Delay are not part of the seven core attributes.
 
 ---
 
+## Charge Naming Decision
+
+Convert was replaced by Charge.
+
+Reason:
+
+The accepted mechanic prepares the next eligible attribute for a one-time efficiency bonus; it does not convert a reaction property.
+
+The name Convert remains available for a possible future true property-conversion mechanic.
+
+Charge is idempotent and is not a toggle.
+
+Core framework remains 7 single + 21 dual = 28 objects.
+
+---
+
 ## Simulation Philosophy
 
 The simulator should remain:
@@ -486,9 +515,9 @@ Gameplay depth should emerge from the interaction of simple systems rather than 
 
 The following items are unresolved and must not be treated as finalized:
 
-- Convert property/type system
+- Exact Charge efficiency parameters
+- Echo interaction with Charge
 - Echo target and repetition rules
-- Whether Ignite can occur more than once
 - How Explode + Echo works with reaction termination
 - Whether upgrades are permanent, run-based, or object-instance based
 - Exact numerical balance values
@@ -497,9 +526,10 @@ The following items are unresolved and must not be treated as finalized:
 
 # 14. Detailed Attribute Specifications
 
-- Release: docs/attributes/release.md - finalized for Prototype 0.6
-- Convert: not finalized
+- Release: docs/attributes/release.md - finalized
+- Charge: docs/attributes/charge.md - finalized
 - Echo: not finalized
+- Explode: detailed specification not yet finalized
 
 ---
 

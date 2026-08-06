@@ -1,4 +1,4 @@
--- Prototype 0.6 deterministic reaction simulator.
+-- Prototype 0.7 deterministic reaction simulator.
 
 local M = {}
 
@@ -18,6 +18,32 @@ local function fail(code, note, meta)
     code = code,
     meta = meta,
   }
+end
+
+local function parse_charge_efficiencies(params)
+  if type(params) ~= "table" then
+    return nil, "Charge requires params table."
+  end
+
+  local amp = params.chargeAmplifyEfficiency
+  local store = params.chargeStoreEfficiency
+  local explode = params.chargeExplodeEfficiency
+
+  if type(amp) ~= "number" then
+    return nil, "Charge requires numeric params.chargeAmplifyEfficiency."
+  end
+  if type(store) ~= "number" then
+    return nil, "Charge requires numeric params.chargeStoreEfficiency."
+  end
+  if type(explode) ~= "number" then
+    return nil, "Charge requires numeric params.chargeExplodeEfficiency."
+  end
+
+  return {
+    chargeAmplifyEfficiency = amp,
+    chargeStoreEfficiency = store,
+    chargeExplodeEfficiency = explode,
+  }, nil
 end
 
 local ATTRIBUTE_HANDLERS = {
@@ -49,7 +75,17 @@ local ATTRIBUTE_HANDLERS = {
       return fail("ERR_INVALID_PARAM", "Amplify requires numeric params.multiplier.")
     end
 
-    state.rv = state.rv * multiplier
+    local base_amplify_result = state.rv * multiplier
+    if state.reactionState == "charged" then
+      state.rv = base_amplify_result * state.chargeEfficiencies.chargeAmplifyEfficiency
+      state.reactionState = "stable"
+      return ok("Reaction value amplified with Charge bonus.", {
+        chargeBonusApplied = true,
+        chargeConsumed = true,
+      })
+    end
+
+    state.rv = base_amplify_result
     return ok("Reaction value amplified.")
   end,
 
@@ -61,8 +97,49 @@ local ATTRIBUTE_HANDLERS = {
       return fail("ERR_INVALID_STATE", "Store cannot run after explosion.")
     end
 
-    state.storedRV = state.storedRV + state.rv
+    local base_store_deposit = state.rv
+    if state.reactionState == "charged" then
+      local charged_deposit = base_store_deposit * state.chargeEfficiencies.chargeStoreEfficiency
+      state.storedRV = state.storedRV + charged_deposit
+      state.reactionState = "stable"
+      return ok("Stored current RV with Charge bonus.", {
+        chargeBonusApplied = true,
+        chargeConsumed = true,
+      })
+    end
+
+    state.storedRV = state.storedRV + base_store_deposit
     return ok("Stored current RV into bank.")
+  end,
+
+  charge = function(state, params, _ctx)
+    if not state.started then
+      return fail("ERR_PRECONDITION", "Charge requires an active reaction.")
+    end
+    if state.ended then
+      return fail("ERR_INVALID_STATE", "Charge cannot run after explosion.")
+    end
+
+    if state.reactionState == "charged" then
+      return ok("Reaction state is already charged.", {
+        chargeActivated = false,
+        chargeBonusApplied = false,
+        chargeConsumed = false,
+      })
+    end
+
+    local charge_efficiencies, err = parse_charge_efficiencies(params)
+    if not charge_efficiencies then
+      return fail("ERR_INVALID_PARAM", err)
+    end
+
+    state.chargeEfficiencies = charge_efficiencies
+    state.reactionState = "charged"
+    return ok("Reaction state changed to charged.", {
+      chargeActivated = true,
+      chargeBonusApplied = false,
+      chargeConsumed = false,
+    })
   end,
 
   release = function(state, _params, _ctx)
@@ -92,7 +169,22 @@ local ATTRIBUTE_HANDLERS = {
     end
 
     local total_rv = state.rv + state.storedRV
-    state.damage = state.damage + (total_rv * damage_ratio)
+    local base_explode_damage_contribution = total_rv * damage_ratio
+    if state.reactionState == "charged" then
+      local charged_damage =
+        base_explode_damage_contribution * state.chargeEfficiencies.chargeExplodeEfficiency
+      state.damage = state.damage + charged_damage
+      state.reactionState = "stable"
+      state.rv = 0
+      state.storedRV = 0
+      state.ended = true
+      return ok("Explosion converted RV to damage with Charge bonus.", {
+        chargeBonusApplied = true,
+        chargeConsumed = true,
+      })
+    end
+
+    state.damage = state.damage + base_explode_damage_contribution
     state.rv = 0
     state.storedRV = 0
     state.ended = true
@@ -109,6 +201,7 @@ local function build_result(success, state, stage_def, log, error_data)
   return {
     damage = state.damage,
     finalRV = state.rv,
+    finalReactionState = state.reactionState,
     cleared = cleared,
     success = success,
     log = log,
@@ -126,6 +219,12 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
     rv = 0,
     storedRV = 0,
     damage = 0,
+    reactionState = "stable",
+    chargeEfficiencies = {
+      chargeAmplifyEfficiency = 1,
+      chargeStoreEfficiency = 1,
+      chargeExplodeEfficiency = 1,
+    },
     started = false,
     ended = false,
   }
@@ -184,6 +283,7 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
       local rv_before = state.rv
       local stored_before = state.storedRV
       local damage_before = state.damage
+      local reaction_state_before = state.reactionState
       local ctx = {
         step = step,
         slotIndex = slot_index,
@@ -195,6 +295,8 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
       local rv_after = state.rv
       local stored_after = state.storedRV
       local damage_after = state.damage
+      local reaction_state_after = state.reactionState
+      local handler_meta = handler_result.meta or {}
 
       log[#log + 1] = {
         step = step,
@@ -207,6 +309,11 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
         storedAfter = stored_after,
         damageBefore = damage_before,
         damageAfter = damage_after,
+        reactionStateBefore = reaction_state_before,
+        reactionStateAfter = reaction_state_after,
+        chargeActivated = handler_meta.chargeActivated == true,
+        chargeBonusApplied = handler_meta.chargeBonusApplied == true,
+        chargeConsumed = handler_meta.chargeConsumed == true,
         note = handler_result.note,
         code = handler_result.code,
       }

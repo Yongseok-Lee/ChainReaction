@@ -33,7 +33,7 @@ function love.draw()
   love.graphics.setColor(1, 1, 1, 1)
 
   local y = 16
-  local line_height = 18
+  local line_height = 16
   local function print_line(text)
     love.graphics.print(text, 16, y)
     y = y + line_height
@@ -88,6 +88,7 @@ function love.draw()
   print_line("Success: " .. bool_label(view.result.success, "Success", "Failure"))
   print_line("Cleared: " .. bool_label(view.result.cleared, "Cleared", "Failed"))
   print_line("Final RV: " .. to_text(view.result.finalRV))
+  print_line("Final Reaction State: " .. to_text(view.result.finalReactionState))
   print_line("Damage: " .. to_text(view.result.damage))
 
   local error_text = "none"
@@ -109,17 +110,28 @@ function love.draw()
   end
 
   for _, entry in ipairs(log) do
-    local summary = string.format(
-      "Step %s | %s | %s | RV %s -> %s | DMG %s -> %s",
+    local line_one = string.format(
+      "Step %s | %s | %s | RV %s -> %s | STO %s -> %s | DMG %s -> %s",
       to_text(entry.step),
       to_text(entry.objectKey),
       to_text(entry.attribute),
       to_text(entry.rvBefore),
       to_text(entry.rvAfter),
+      to_text(entry.storedBefore),
+      to_text(entry.storedAfter),
       to_text(entry.damageBefore),
       to_text(entry.damageAfter)
     )
-    print_line(summary)
+    local line_two = string.format(
+      "  ST %s -> %s | ACT %s | BON %s | CON %s",
+      to_text(entry.reactionStateBefore),
+      to_text(entry.reactionStateAfter),
+      to_text(entry.chargeActivated),
+      to_text(entry.chargeBonusApplied),
+      to_text(entry.chargeConsumed)
+    )
+    print_line(line_one)
+    print_line(line_two)
   end
 end
 
