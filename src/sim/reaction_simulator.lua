@@ -1,4 +1,4 @@
--- Prototype 0.1 deterministic reaction simulator.
+-- Prototype 0.6 deterministic reaction simulator.
 
 local M = {}
 
@@ -63,6 +63,19 @@ local ATTRIBUTE_HANDLERS = {
 
     state.storedRV = state.storedRV + state.rv
     return ok("Stored current RV into bank.")
+  end,
+
+  release = function(state, _params, _ctx)
+    if not state.started then
+      return fail("ERR_PRECONDITION", "Release requires an active reaction.")
+    end
+    if state.ended then
+      return fail("ERR_INVALID_STATE", "Release cannot run after explosion.")
+    end
+
+    state.rv = state.rv + state.storedRV
+    state.storedRV = 0
+    return ok("Released stored RV into active flow.")
   end,
 
   explode = function(state, params, _ctx)

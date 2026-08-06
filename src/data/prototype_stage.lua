@@ -4,7 +4,9 @@ local stage = {
   initialSlots = {
     { objectKey = "spark" },
     { objectKey = nil },
-    { objectKey = "fuel" },
+    { objectKey = nil },
+    { objectKey = nil },
+    { objectKey = nil },
     { objectKey = "bomb" },
   },
   targetDamage = 2,
