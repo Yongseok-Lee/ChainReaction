@@ -197,9 +197,18 @@ Store reaction value for later use.
 
 Purpose:
 
-Move StoredRV back into RV.
+Move stored reaction value back into the active reaction flow.
 
-The exact behavior is intentionally left unresolved during Prototype 0.x.
+Prototype 0.6 finalized rule:
+
+- RV_after = RV_before + StoredRV_before
+- StoredRV_after = 0
+- Release with StoredRV = 0 is a valid no-op.
+- Release requires Ignite and is invalid after reaction termination.
+
+For full details, reference:
+
+`docs/attributes/release.md`
 
 ---
 
@@ -373,7 +382,11 @@ Implemented:
 - Deterministic Simulation
 - Runtime Slot Snapshot
 
-Currently In Progress:
+Finalized Specification:
+
+- Release
+
+Pending Implementation:
 
 - Release
 
@@ -412,14 +425,13 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Finalize Release rule specification
-2. Implement and test Release
-3. Finalize Convert rule specification
-4. Implement and test Convert
-5. Finalize Echo rule specification
-6. Implement and test Echo
-7. Add generic ordered multi-attribute object support
-8. Introduce the 21 dual-attribute objects gradually
+1. Implement and test Release according to docs/attributes/release.md
+2. Finalize Convert rule specification
+3. Implement and test Convert
+4. Finalize Echo rule specification
+5. Implement and test Echo
+6. Add generic ordered multi-attribute object support
+7. Introduce the 21 dual-attribute objects gradually
 
 ---
 
@@ -474,7 +486,6 @@ Gameplay depth should emerge from the interaction of simple systems rather than 
 
 The following items are unresolved and must not be treated as finalized:
 
-- Exact Release rules and edge cases
 - Convert property/type system
 - Echo target and repetition rules
 - Whether Ignite can occur more than once
@@ -484,7 +495,15 @@ The following items are unresolved and must not be treated as finalized:
 
 ---
 
-# 14. Design Stability
+# 14. Detailed Attribute Specifications
+
+- Release: docs/attributes/release.md - finalized for Prototype 0.6
+- Convert: not finalized
+- Echo: not finalized
+
+---
+
+# 15. Design Stability
 
 The following are considered stable unless a major redesign occurs:
 
