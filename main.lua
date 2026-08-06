@@ -39,7 +39,7 @@ function love.draw()
     y = y + line_height
   end
 
-  print_line("ChainReaction Prototype 0.9")
+  print_line("ChainReaction Reaction Engine Prototype")
   print_line("Controls: Left/Right select | Up/Down cycle object | Del clear")
   print_line("          S mark/swap slots | R reset slots | Space run simulation")
   print_line("")

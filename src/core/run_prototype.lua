@@ -24,10 +24,18 @@ local function resolve_object_order(defs)
     return copy_array(defs.availableOrder)
   end
 
+  local metadata_keys = {
+    availableOrder = true,
+  }
   local keys = {}
   for key, value in pairs(defs) do
-    if type(key) == "string" and type(value) == "table" and type(value.attribute) == "string" then
-      keys[#keys + 1] = key
+    if type(key) == "string" and not metadata_keys[key] and type(value) == "table" then
+      local attributes = value.attributes
+      local first_attribute = type(attributes) == "table" and attributes[1] or nil
+      local first_attribute_key = type(first_attribute) == "table" and first_attribute.key or nil
+      if type(first_attribute_key) == "string" and first_attribute_key ~= "" then
+        keys[#keys + 1] = key
+      end
     end
   end
   table.sort(keys)

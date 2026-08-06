@@ -27,6 +27,24 @@ local function canonical_dual_pair_key(a, b)
   return b .. "|" .. a
 end
 
+local function sorted_field_keys(row)
+  local keys = {}
+  for field_name, _ in pairs(row) do
+    keys[#keys + 1] = field_name
+  end
+
+  table.sort(keys, function(a, b)
+    local type_a = type(a)
+    local type_b = type(b)
+    if type_a ~= type_b then
+      return type_a < type_b
+    end
+    return tostring(a) < tostring(b)
+  end)
+
+  return keys
+end
+
 local function validate_dense_array_shape(value)
   if type(value) ~= "table" then
     return false, 0
@@ -128,7 +146,8 @@ local function validate_available_order(catalog, errors)
 end
 
 local function validate_object_fields(object_key, object_def, errors)
-  for field_name, _ in pairs(object_def) do
+  local field_keys = sorted_field_keys(object_def)
+  for _, field_name in ipairs(field_keys) do
     if field_name == "id" or field_name == "key" then
       add_error(errors, {
         code = "ERR_INTERNAL_ID_FORBIDDEN",
@@ -202,7 +221,8 @@ local function validate_attributes(object_key, object_def, supported_attributes,
         attributeIndex = attribute_index,
       })
     else
-      for field_name, _ in pairs(entry) do
+      local field_keys = sorted_field_keys(entry)
+      for _, field_name in ipairs(field_keys) do
         if not ALLOWED_ATTRIBUTE_FIELDS[field_name] then
           add_error(errors, {
             code = "ERR_UNKNOWN_ATTRIBUTE_FIELD",
