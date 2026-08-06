@@ -111,10 +111,16 @@ function love.draw()
 
   for _, entry in ipairs(log) do
     local line_one = string.format(
-      "Step %s | %s | %s | RV %s -> %s | STO %s -> %s | DMG %s -> %s",
+      "Step %s | Slot %s | %s | Attr %s/%s %s",
       to_text(entry.step),
+      to_text(entry.slotIndex),
       to_text(entry.objectKey),
-      to_text(entry.attribute),
+      to_text(entry.attributeIndex),
+      to_text(entry.attributeCount),
+      to_text(entry.attribute)
+    )
+    local line_two = string.format(
+      "  RV %s -> %s | STO %s -> %s | DMG %s -> %s",
       to_text(entry.rvBefore),
       to_text(entry.rvAfter),
       to_text(entry.storedBefore),
@@ -122,7 +128,7 @@ function love.draw()
       to_text(entry.damageBefore),
       to_text(entry.damageAfter)
     )
-    local line_two = string.format(
+    local line_three = string.format(
       "  ST %s -> %s | ACT %s | BON %s | CON %s",
       to_text(entry.reactionStateBefore),
       to_text(entry.reactionStateAfter),
@@ -132,6 +138,7 @@ function love.draw()
     )
     print_line(line_one)
     print_line(line_two)
+    print_line(line_three)
   end
 end
 

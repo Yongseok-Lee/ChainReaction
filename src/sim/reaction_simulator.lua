@@ -1,4 +1,4 @@
--- Prototype 0.7 deterministic reaction simulator.
+-- Prototype 0.8 deterministic reaction simulator.
 
 local M = {}
 
@@ -120,6 +120,12 @@ local ATTRIBUTE_HANDLERS = {
       return fail("ERR_INVALID_STATE", "Charge cannot run after explosion.")
     end
 
+    local charge_efficiencies, err = parse_charge_efficiencies(params)
+    if not charge_efficiencies then
+      return fail("ERR_INVALID_PARAM", err)
+    end
+
+    state.chargeEfficiencies = charge_efficiencies
     if state.reactionState == "charged" then
       return ok("Reaction state is already charged.", {
         chargeActivated = false,
@@ -128,12 +134,6 @@ local ATTRIBUTE_HANDLERS = {
       })
     end
 
-    local charge_efficiencies, err = parse_charge_efficiencies(params)
-    if not charge_efficiencies then
-      return fail("ERR_INVALID_PARAM", err)
-    end
-
-    state.chargeEfficiencies = charge_efficiencies
     state.reactionState = "charged"
     return ok("Reaction state changed to charged.", {
       chargeActivated = true,
@@ -209,6 +209,105 @@ local function build_result(success, state, stage_def, log, error_data)
   }
 end
 
+local function validate_object_attributes(object_def, object_key, slot_index)
+  if type(object_def) ~= "table" then
+    return nil, {
+      code = "ERR_INVALID_OBJECT_DEF",
+      note = "Object definition must be a table.",
+      objectKey = object_key,
+      slotIndex = slot_index,
+    }
+  end
+
+  local attributes = object_def.attributes
+  if type(attributes) ~= "table" then
+    return nil, {
+      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+      note = "Object attributes must be a non-empty ordered table.",
+      objectKey = object_key,
+      slotIndex = slot_index,
+    }
+  end
+
+  local attribute_count = #attributes
+  if attribute_count == 0 then
+    return nil, {
+      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+      note = "Object attributes must be non-empty.",
+      objectKey = object_key,
+      slotIndex = slot_index,
+    }
+  end
+  if attribute_count > 2 then
+    return nil, {
+      code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+      note = "Object attributes exceed Prototype 0.8 maximum count of 2.",
+      objectKey = object_key,
+      slotIndex = slot_index,
+    }
+  end
+
+  local seen = {}
+  for attribute_index, entry in ipairs(attributes) do
+    if type(entry) ~= "table" then
+      return nil, {
+        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+        note = "Attribute entry must be a table.",
+        objectKey = object_key,
+        slotIndex = slot_index,
+        attributeIndex = attribute_index,
+      }
+    end
+
+    local key = entry.key
+    if type(key) ~= "string" or key == "" then
+      return nil, {
+        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+        note = "Attribute key must be a non-empty string.",
+        objectKey = object_key,
+        slotIndex = slot_index,
+        attributeIndex = attribute_index,
+      }
+    end
+
+    if type(entry.params) ~= "table" then
+      return nil, {
+        code = "ERR_INVALID_OBJECT_ATTRIBUTES",
+        note = "Attribute params must be a table.",
+        objectKey = object_key,
+        slotIndex = slot_index,
+        attributeIndex = attribute_index,
+        attribute = key,
+      }
+    end
+
+    if seen[key] then
+      return nil, {
+        code = "ERR_DUPLICATE_ATTRIBUTE",
+        note = "Duplicate attribute keys are invalid for one object.",
+        objectKey = object_key,
+        slotIndex = slot_index,
+        attributeIndex = attribute_index,
+        attribute = key,
+      }
+    end
+    seen[key] = true
+
+    if type(ATTRIBUTE_HANDLERS[key]) ~= "function" then
+      return nil, {
+        code = "ERR_UNSUPPORTED_ATTRIBUTE",
+        note = "No handler exists for object attribute.",
+        objectKey = object_key,
+        slotIndex = slot_index,
+        attributeIndex = attribute_index,
+        attribute = key,
+      }
+    end
+  end
+
+  return attributes, nil
+end
+
 ---Runs one deterministic reaction simulation.
 ---@param stageDef table
 ---@param objectDefs table
@@ -255,79 +354,85 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
   for slot_index, slot in ipairs(runtimeSlots) do
     local object_key = type(slot) == "table" and slot.objectKey or nil
     if object_key ~= nil then
-      step = step + 1
       local object_def = objectDefs[object_key]
-      if type(object_def) ~= "table" then
+      if object_def == nil then
         return build_result(false, state, stageDef, log, {
-          code = "ERR_UNKNOWN_OBJECT",
+          code = "ERR_INVALID_OBJECT_DEF",
           note = "Object key not found in definitions.",
-          step = step,
           slotIndex = slot_index,
           objectKey = object_key,
         })
       end
 
-      local attribute = object_def.attribute
-      local handler = ATTRIBUTE_HANDLERS[attribute]
-      if type(handler) ~= "function" then
-        return build_result(false, state, stageDef, log, {
-          code = "ERR_UNSUPPORTED_ATTRIBUTE",
-          note = "No handler exists for object attribute.",
-          step = step,
-          slotIndex = slot_index,
-          objectKey = object_key,
-          attribute = attribute,
-        })
+      local attributes, object_validation_error =
+        validate_object_attributes(object_def, object_key, slot_index)
+      if object_validation_error then
+        return build_result(false, state, stageDef, log, object_validation_error)
       end
 
-      local rv_before = state.rv
-      local stored_before = state.storedRV
-      local damage_before = state.damage
-      local reaction_state_before = state.reactionState
-      local ctx = {
-        step = step,
-        slotIndex = slot_index,
-        objectKey = object_key,
-        attribute = attribute,
-        stage = stageDef,
-      }
-      local handler_result = handler(state, object_def.params, ctx)
-      local rv_after = state.rv
-      local stored_after = state.storedRV
-      local damage_after = state.damage
-      local reaction_state_after = state.reactionState
-      local handler_meta = handler_result.meta or {}
+      local attribute_count = #attributes
+      for attribute_index, attribute_entry in ipairs(attributes) do
+        if state.ended then
+          break
+        end
 
-      log[#log + 1] = {
-        step = step,
-        slotIndex = slot_index,
-        objectKey = object_key,
-        attribute = attribute,
-        rvBefore = rv_before,
-        rvAfter = rv_after,
-        storedBefore = stored_before,
-        storedAfter = stored_after,
-        damageBefore = damage_before,
-        damageAfter = damage_after,
-        reactionStateBefore = reaction_state_before,
-        reactionStateAfter = reaction_state_after,
-        chargeActivated = handler_meta.chargeActivated == true,
-        chargeBonusApplied = handler_meta.chargeBonusApplied == true,
-        chargeConsumed = handler_meta.chargeConsumed == true,
-        note = handler_result.note,
-        code = handler_result.code,
-      }
-
-      if not handler_result.ok then
-        return build_result(false, state, stageDef, log, {
-          code = handler_result.code or "ERR_HANDLER",
-          note = handler_result.note or "Attribute handler failed.",
+        step = step + 1
+        local attribute_key = attribute_entry.key
+        local handler = ATTRIBUTE_HANDLERS[attribute_key]
+        local rv_before = state.rv
+        local stored_before = state.storedRV
+        local damage_before = state.damage
+        local reaction_state_before = state.reactionState
+        local ctx = {
           step = step,
           slotIndex = slot_index,
           objectKey = object_key,
-          attribute = attribute,
-          meta = handler_result.meta,
-        })
+          attributeIndex = attribute_index,
+          attributeCount = attribute_count,
+          attribute = attribute_key,
+          stage = stageDef,
+        }
+        local handler_result = handler(state, attribute_entry.params, ctx)
+        local rv_after = state.rv
+        local stored_after = state.storedRV
+        local damage_after = state.damage
+        local reaction_state_after = state.reactionState
+        local handler_meta = handler_result.meta or {}
+
+        log[#log + 1] = {
+          step = step,
+          slotIndex = slot_index,
+          objectKey = object_key,
+          attributeIndex = attribute_index,
+          attributeCount = attribute_count,
+          attribute = attribute_key,
+          rvBefore = rv_before,
+          rvAfter = rv_after,
+          storedBefore = stored_before,
+          storedAfter = stored_after,
+          damageBefore = damage_before,
+          damageAfter = damage_after,
+          reactionStateBefore = reaction_state_before,
+          reactionStateAfter = reaction_state_after,
+          chargeActivated = handler_meta.chargeActivated == true,
+          chargeBonusApplied = handler_meta.chargeBonusApplied == true,
+          chargeConsumed = handler_meta.chargeConsumed == true,
+          note = handler_result.note,
+          code = handler_result.code,
+        }
+
+        if not handler_result.ok then
+          return build_result(false, state, stageDef, log, {
+            code = handler_result.code or "ERR_HANDLER",
+            note = handler_result.note or "Attribute handler failed.",
+            step = step,
+            slotIndex = slot_index,
+            objectKey = object_key,
+            attributeIndex = attribute_index,
+            attribute = attribute_key,
+            meta = handler_result.meta,
+          })
+        end
       end
 
       if state.ended then

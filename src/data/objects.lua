@@ -1,40 +1,121 @@
 -- Prototype 0.7 object definitions (data-only).
 
 local objects = {
-  availableOrder = { "spark", "fuel", "crystal", "valve", "catalyst", "bomb" },
+  availableOrder = {
+    "spark",
+    "fuel",
+    "crystal",
+    "valve",
+    "catalyst",
+    "bomb",
+    "reactor",
+    "accumulator",
+    "pressure_bomb",
+  },
 
   spark = {
-    attribute = "ignite",
-    params = {
-      baseRV = 1,
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
     },
   },
   fuel = {
-    attribute = "amplify",
-    params = {
-      multiplier = 2,
+    attributes = {
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
     },
   },
   crystal = {
-    attribute = "store",
-    params = {},
+    attributes = {
+      {
+        key = "store",
+        params = {},
+      },
+    },
   },
   valve = {
-    attribute = "release",
-    params = {},
+    attributes = {
+      {
+        key = "release",
+        params = {},
+      },
+    },
   },
   catalyst = {
-    attribute = "charge",
-    params = {
-      chargeAmplifyEfficiency = 1.25,
-      chargeStoreEfficiency = 1.25,
-      chargeExplodeEfficiency = 1.25,
+    attributes = {
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
     },
   },
   bomb = {
-    attribute = "explode",
-    params = {
-      damageRatio = 1,
+    attributes = {
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
+    },
+  },
+
+  reactor = {
+    attributes = {
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+    },
+  },
+
+  accumulator = {
+    attributes = {
+      {
+        key = "store",
+        params = {},
+      },
+      {
+        key = "release",
+        params = {},
+      },
+    },
+  },
+
+  pressure_bomb = {
+    attributes = {
+      {
+        key = "release",
+        params = {},
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
     },
   },
 }
