@@ -1,4 +1,4 @@
--- Prototype 0.9 object definitions (data-only).
+-- Prototype 1.0 object definitions (data-only).
 
 local objects = {
   availableOrder = {
@@ -168,6 +168,21 @@ local objects = {
           chargeStoreEfficiency = 1.25,
           chargeExplodeEfficiency = 1.25,
         },
+      },
+    },
+  },
+
+  resonant_spark = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "echo",
+        params = {},
       },
     },
   },

@@ -3,6 +3,7 @@
 Status: Finalized for Prototype 0.6 acceptance
 
 Scope:
+
 - Gameplay rule specification only
 - No implementation details
 - Linear deterministic slot execution
@@ -28,10 +29,14 @@ Release transfers stored numerical value into active flow and clears storage.
 - Release requires Ignite to have already started the reaction.
 - Release is invalid after the reaction has ended.
 
+
+
 ### 2.2 Zero-Storage Behavior
 
 - Release with `StoredRV = 0` is a valid no-op.
 - It must not produce an error.
+
+
 
 ### 2.3 Multiple Release Behavior
 
@@ -39,10 +44,14 @@ Release transfers stored numerical value into active flow and clears storage.
 - Each Release uses the current state at its execution step.
 - A Release after another Release is normally a no-op unless Store added new `StoredRV` in between.
 
+
+
 ### 2.4 Sequential Processing
 
 - No special-case interactions are added.
 - Store, Release, Amplify, and Explode execute strictly by slot/attribute order.
+
+
 
 ### 2.5 Numeric Policy
 
@@ -50,15 +59,31 @@ Release transfers stored numerical value into active flow and clears storage.
 - Values are not restricted to integers.
 - Release introduces no rounding.
 
-### 2.6 Convert Compatibility
 
-- Prototype 0.6 Release transfers numerical value only.
-- Reaction property metadata behavior remains unresolved until Convert is specified.
+
+### 2.6 Non-Numeric State Compatibility
+
+- Release transfers numerical reaction value only.
+- Release modifies only RV and StoredRV according to canonical Full Merge.
+- Release does not modify reactionState.
+- Release does not activate, consume, or replace Charge.
+- Release does not modify Echo replay history by itself. Normal execution history follows the standard deterministic execution rules.
+- Any future non-numeric property system requires an explicit later specification before it can change Release behavior.
+
+
 
 ### 2.7 Echo Compatibility
 
-- Release interaction with Echo remains unresolved until Echo is specified.
-- No Echo rule is defined in this document.
+- Release is an eligible Echo source.
+- Echo replays Release against current runtime state.
+- Replayed Release uses canonical Full Merge:
+  - `RV_after = RV_before + StoredRV_before`
+  - `StoredRV_after = 0`
+- Replayed Release with `StoredRV = 0` is a valid no-op.
+- StoredRV cannot become negative through handler replay.
+- Echo itself does not alter Release rules.
+
+
 
 ### 2.8 Logging Requirements
 
@@ -73,6 +98,8 @@ Every Release log entry must include:
 - `note`
 - `code`
 
+
+
 ### 2.9 Error Behavior
 
 - Release before Ignite returns `ERR_PRECONDITION`.
@@ -80,6 +107,8 @@ Every Release log entry must include:
 - Zero `StoredRV` is not an error.
 
 ---
+
+
 
 ## 3) Acceptance Scenarios (Given/When/Then)
 
@@ -103,6 +132,8 @@ Initial state for each simulation:
 
 ---
 
+
+
 ### Scenario A: Spark -> Store -> Release -> Bomb
 
 Given a chain: `Spark -> Store -> Release -> Bomb`  
@@ -115,10 +146,13 @@ Then:
 4. Bomb: `damage += 2 + 0 = 2`, then `RV=0`, `StoredRV=0`, ended
 
 Expected result:
+
 - `damage = 2`
 - success/clear depends on stage target
 
 ---
+
+
 
 ### Scenario B: Spark -> Store -> Release -> Fuel -> Bomb
 
@@ -133,9 +167,12 @@ Then:
 5. Bomb: `damage += 4 + 0 = 4`
 
 Expected result:
+
 - `damage = 4`
 
 ---
+
+
 
 ### Scenario C: Spark -> Store -> Release -> Store -> Release -> Bomb
 
@@ -151,9 +188,12 @@ Then:
 6. Bomb: `damage += 4 + 0 = 4`
 
 Expected result:
+
 - `damage = 4`
 
 ---
+
+
 
 ### Scenario D: Spark -> Release -> Bomb
 
@@ -162,16 +202,19 @@ When executed
 Then:
 
 1. Spark: `RV=1`, `StoredRV=0`
-2. Release (zero stored): valid no-op  
-   - `RV=1`, `StoredRV=0`
-   - no error
+2. Release (zero stored): valid no-op
+  - `RV=1`, `StoredRV=0`
+  - no error
 3. Bomb: `damage += 1 + 0 = 1`
 
 Expected result:
+
 - `damage = 1`
 - Release step logs normal success with unchanged values
 
 ---
+
+
 
 ### Scenario E: Release before Spark
 
@@ -185,6 +228,8 @@ Then:
 
 ---
 
+
+
 ### Scenario F: Release after Bomb
 
 Given a chain containing `... -> Bomb -> Release`  
@@ -194,10 +239,13 @@ Then:
 - Release returns `ERR_INVALID_STATE`
 
 Note:
+
 - In implementations that stop traversal immediately on explode, this step may be unreachable in normal execution.
 - Rule remains locked for any context where Release is evaluated with `ended=true`.
 
 ---
+
+
 
 ### Scenario G: Consecutive Release objects
 
@@ -210,10 +258,13 @@ Then:
 3. Bomb: `damage = 2`
 
 Expected:
+
 - no error from second Release
 - second Release logs unchanged before/after values
 
 ---
+
+
 
 ### Scenario H: No Store path regression
 
@@ -226,9 +277,12 @@ Then behavior must match pre-Release baseline:
 3. Bomb: `damage=2`
 
 Expected:
+
 - existing non-Release chains remain unchanged
 
 ---
+
+
 
 ### Scenario I: Repeated simulation determinism
 
@@ -243,6 +297,8 @@ Then every run must produce identical:
 
 ---
 
+
+
 ### Scenario J: StoredRV reset between separate simulations
 
 Given a first run that builds non-zero `StoredRV` during execution  
@@ -254,9 +310,12 @@ Then initial state must reset:
 - no carried state from prior run
 
 Expected:
+
 - Release in a new run depends only on that run's Store steps
 
 ---
+
+
 
 ## 4) Finalized Rules
 
@@ -268,20 +327,23 @@ Expected:
 - Multiple Release steps are valid and state-driven.
 - Processing order is strictly sequential and deterministic.
 - Release introduces no rounding and no integer-only restriction.
-- Release defines numeric transfer only; non-numeric metadata behavior is deferred.
+- Release defines numerical transfer only and leaves non-numeric reaction state unchanged unless a future specification explicitly revises this rule.
 - Release logging fields are mandatory as listed.
 
 ---
 
+
+
 ## 5) Explicitly Deferred Rules
 
-- Convert property/type metadata and how Release interacts with that metadata
-- Echo targeting/timing/repetition behavior with Release
+- Any future non-numeric property system and its interaction with Release
 - Any non-linear or branch-based behavior
 - Numerical balance tuning values beyond this canonical merge rule
 - Any redesign of explosion lifecycle semantics beyond current prototype conventions
 
 ---
+
+
 
 ## 6) Implementation Acceptance Checklist
 
@@ -294,8 +356,10 @@ Expected:
 - [ ] Release does not alter sequential execution ordering.
 - [ ] Release introduces no rounding behavior.
 - [ ] Release logs include all required fields:
-      `rvBefore`, `rvAfter`, `storedBefore`, `storedAfter`,
-      `damageBefore`, `damageAfter`, `note`, `code`.
+  ```
+  `rvBefore`, `rvAfter`, `storedBefore`, `storedAfter`,
+  `damageBefore`, `damageAfter`, `note`, `code`.
+  ```
 - [ ] No-Store chains remain behaviorally unchanged.
 - [ ] Repeated runs are deterministic.
 - [ ] `StoredRV` resets between separate simulations.

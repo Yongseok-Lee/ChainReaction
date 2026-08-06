@@ -8,6 +8,7 @@ Implemented prototype slice:
 
 - Runtime slot editing with keyboard controls
 - Deterministic reaction simulation
+- Behavior-preserving simulator modular refactor
 - Seven implemented core attributes:
   - Ignite
   - Amplify
@@ -16,13 +17,17 @@ Implemented prototype slice:
   - Charge
   - Echo
   - Explode
+- 7 core single-attribute objects
+- 20 finalized dual-attribute objects
+- 27 executable catalog objects total
 - Ordered one/two-attribute object execution
 - Echo eligible-handler replay behavior
 - Strict deterministic object catalog structural validation
 
 Not implemented yet:
 
-- Full 7-single / 21-dual / 28-total playable catalog rollout
+- Resonant Spark (`Ignite + Echo`) execution identity/order finalization
+- Complete 28th runtime object rollout
 - Stage progression loop
 - Reward and upgrade systems
 - Inventory/unlock/save systems
@@ -63,8 +68,13 @@ Design Goals:
 
 - Stage definition remains immutable (`src/data/prototype_stage.lua`).
 - SlotManager owns mutable runtime slots (`src/core/slot_manager.lua`).
-- Simulator executes ordered attributes and owns reaction state/logging (`src/sim/reaction_simulator.lua`).
-- Catalog validator enforces strict schema before simulation (`src/data/object_catalog_validator.lua`).
+- `src/sim/reaction_simulator.lua` owns simulation orchestration and result assembly.
+- `src/sim/simulation_state.lua` owns runtime state creation.
+- `src/sim/attribute_handlers.lua` owns attribute gameplay rules.
+- `src/sim/attribute_executor.lua` owns top-level attribute execution, logging, and history updates.
+- `src/data/object_catalog_validator.lua` enforces strict catalog schema before simulation.
+- `availableOrder` in `src/data/objects.lua` is a compact keyboard QA list, not full catalog/inventory/unlock data.
+- The runtime catalog contains more executable objects than appear in `availableOrder`.
 
 ## Run
 

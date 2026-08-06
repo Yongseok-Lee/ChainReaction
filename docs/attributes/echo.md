@@ -362,10 +362,9 @@ Finalized execution orders:
 - Kaleidoscope: `Echo -> Charge`
 - Cluster Bomb: `Echo -> Explode`
 
-Unresolved combination:
+Finalized combination:
 
-- Resonant Spark: `Ignite + Echo`
-- execution order and gameplay identity remain provisional
+- Resonant Spark: `Ignite -> Echo`
 - no Ignite-specific Echo exception is added
 
 Important testing constraint:
@@ -379,7 +378,6 @@ Important testing constraint:
 
 The following remain unresolved and are intentionally deferred:
 
-- Finalized gameplay identity/order for Resonant Spark (`Ignite + Echo`)
 - Full catalog naming/theme pass after world/visual direction is finalized
 - Any Echo interaction with future mechanics beyond current seven-core scope
 - Any post-terminal lifecycle redesign (explicitly out of scope)
@@ -404,6 +402,7 @@ The following remain unresolved and are intentionally deferred:
 - [ ] No post-terminal execution exception exists.
 - [ ] Echo logs include all required echo-specific fields.
 - [ ] Echo failure behavior preserves first-error-stop and no-rollback semantics.
+- [ ] Resonant Spark (`Ignite -> Echo`) behavior remains compatible with current Echo preconditions and source-selection rules.
 
 ---
 
@@ -418,7 +417,6 @@ Echo is a deterministic one-step handler replay mechanic:
 
 ## Deferred Issues Summary
 
-- Resonant Spark (`Ignite + Echo`) execution identity remains provisional.
 - No terminal-rule exception for post-Explode execution.
 - Echo interactions beyond current core scope remain deferred.
 

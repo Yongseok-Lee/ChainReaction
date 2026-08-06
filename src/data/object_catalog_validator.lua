@@ -16,6 +16,19 @@ local ALLOWED_ATTRIBUTE_FIELDS = {
   params = true,
 }
 
+local EXPECTED_SINGLE_COUNT = 7
+local EXPECTED_DUAL_COUNT = 21
+local EXPECTED_EXECUTABLE_OBJECT_COUNT = 28
+local EXPECTED_SINGLE_ATTRIBUTE_KEYS = {
+  "ignite",
+  "amplify",
+  "store",
+  "release",
+  "charge",
+  "echo",
+  "explode",
+}
+
 local function add_error(errors, error_data)
   errors[#errors + 1] = error_data
 end
@@ -87,6 +100,29 @@ local function collect_sorted_object_keys(catalog)
   end)
 
   return keys
+end
+
+local function collect_sorted_string_keys(set_table)
+  local keys = {}
+  for key, value in pairs(set_table) do
+    if value == true and type(key) == "string" then
+      keys[#keys + 1] = key
+    end
+  end
+  table.sort(keys)
+  return keys
+end
+
+local function build_expected_dual_pair_set()
+  local expected = {}
+  for i = 1, #EXPECTED_SINGLE_ATTRIBUTE_KEYS do
+    for j = i + 1, #EXPECTED_SINGLE_ATTRIBUTE_KEYS do
+      local pair_key =
+        canonical_dual_pair_key(EXPECTED_SINGLE_ATTRIBUTE_KEYS[i], EXPECTED_SINGLE_ATTRIBUTE_KEYS[j])
+      expected[pair_key] = true
+    end
+  end
+  return expected
 end
 
 local function validate_available_order(catalog, errors)
@@ -281,8 +317,131 @@ local function validate_attributes(object_key, object_def, supported_attributes,
   return attributes, attribute_count
 end
 
-function M.validateCatalog(object_defs, supported_attributes)
+local function validate_catalog_completeness(object_defs, object_keys, errors)
+  local single_count = 0
+  local dual_count = 0
+  local executable_count = 0
+  local expected_single_set = {}
+  local observed_single_set = {}
+  local expected_dual_pair_set = build_expected_dual_pair_set()
+  local observed_dual_pair_set = {}
+
+  for _, key in ipairs(EXPECTED_SINGLE_ATTRIBUTE_KEYS) do
+    expected_single_set[key] = true
+  end
+
+  for _, object_key in ipairs(object_keys) do
+    local object_def = object_defs[object_key]
+    if type(object_def) == "table" and type(object_def.attributes) == "table" then
+      local is_dense_array, attribute_count = validate_dense_array_shape(object_def.attributes)
+      if is_dense_array then
+        if attribute_count == 1 then
+          single_count = single_count + 1
+          executable_count = executable_count + 1
+          local entry = object_def.attributes[1]
+          local attribute_key = type(entry) == "table" and entry.key or nil
+          if type(attribute_key) == "string" and attribute_key ~= "" then
+            observed_single_set[attribute_key] = true
+          end
+        elseif attribute_count == 2 then
+          dual_count = dual_count + 1
+          executable_count = executable_count + 1
+          local first = object_def.attributes[1]
+          local second = object_def.attributes[2]
+          local first_key = type(first) == "table" and first.key or nil
+          local second_key = type(second) == "table" and second.key or nil
+          if type(first_key) == "string" and first_key ~= "" and type(second_key) == "string" and second_key ~= "" then
+            local pair_key = canonical_dual_pair_key(first_key, second_key)
+            observed_dual_pair_set[pair_key] = true
+          end
+        end
+      end
+    end
+  end
+
+  if single_count ~= EXPECTED_SINGLE_COUNT then
+    add_error(errors, {
+      code = "ERR_CATALOG_SINGLE_COUNT",
+      note = "Catalog must contain exactly 7 single-attribute objects.",
+      field = "catalogSingleCount",
+    })
+  end
+
+  if dual_count ~= EXPECTED_DUAL_COUNT then
+    add_error(errors, {
+      code = "ERR_CATALOG_DUAL_COUNT",
+      note = "Catalog must contain exactly 21 dual-attribute objects.",
+      field = "catalogDualCount",
+    })
+  end
+
+  if executable_count ~= EXPECTED_EXECUTABLE_OBJECT_COUNT then
+    add_error(errors, {
+      code = "ERR_CATALOG_TOTAL_COUNT",
+      note = "Catalog must contain exactly 28 executable objects.",
+      field = "catalogTotalCount",
+    })
+  end
+
+  for _, expected_single_key in ipairs(EXPECTED_SINGLE_ATTRIBUTE_KEYS) do
+    if observed_single_set[expected_single_key] ~= true then
+      add_error(errors, {
+        code = "ERR_CATALOG_SINGLE_COVERAGE_MISSING",
+        note = "Catalog is missing expected single-attribute coverage.",
+        field = "catalogSingleCoverage",
+        attribute = expected_single_key,
+      })
+    end
+  end
+
+  local unexpected_single_keys = {}
+  for single_key, _ in pairs(observed_single_set) do
+    if expected_single_set[single_key] ~= true then
+      unexpected_single_keys[#unexpected_single_keys + 1] = single_key
+    end
+  end
+  table.sort(unexpected_single_keys)
+  for _, unexpected_single_key in ipairs(unexpected_single_keys) do
+    add_error(errors, {
+      code = "ERR_CATALOG_SINGLE_COVERAGE_UNEXPECTED",
+      note = "Catalog contains unexpected single-attribute coverage.",
+      field = "catalogSingleCoverage",
+      attribute = unexpected_single_key,
+    })
+  end
+
+  local expected_dual_pair_keys = collect_sorted_string_keys(expected_dual_pair_set)
+  for _, expected_pair_key in ipairs(expected_dual_pair_keys) do
+    if observed_dual_pair_set[expected_pair_key] ~= true then
+      add_error(errors, {
+        code = "ERR_CATALOG_DUAL_PAIR_MISSING",
+        note = "Catalog is missing expected unordered dual-pair coverage.",
+        field = "catalogDualCoverage",
+        dualPairKey = expected_pair_key,
+      })
+    end
+  end
+
+  local unexpected_dual_pair_keys = {}
+  for pair_key, _ in pairs(observed_dual_pair_set) do
+    if expected_dual_pair_set[pair_key] ~= true then
+      unexpected_dual_pair_keys[#unexpected_dual_pair_keys + 1] = pair_key
+    end
+  end
+  table.sort(unexpected_dual_pair_keys)
+  for _, unexpected_pair_key in ipairs(unexpected_dual_pair_keys) do
+    add_error(errors, {
+      code = "ERR_CATALOG_DUAL_PAIR_UNEXPECTED",
+      note = "Catalog contains unexpected unordered dual-pair coverage.",
+      field = "catalogDualCoverage",
+      dualPairKey = unexpected_pair_key,
+    })
+  end
+end
+
+function M.validateCatalog(object_defs, supported_attributes, options)
   local errors = {}
+  local enforce_completeness = type(options) == "table" and options.enforceCompleteness == true
 
   if type(object_defs) ~= "table" then
     return {
@@ -353,6 +512,10 @@ function M.validateCatalog(object_defs, supported_attributes)
         end
       end
     end
+  end
+
+  if enforce_completeness then
+    validate_catalog_completeness(object_defs, object_keys, errors)
   end
 
   return {

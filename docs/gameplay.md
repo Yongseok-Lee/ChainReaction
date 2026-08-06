@@ -288,7 +288,7 @@ Explosion consumes the reaction.
 2. Ember Core - Ignite -> Store
 3. Primer - Ignite -> Release
 4. Arc Spark - Ignite -> Charge
-5. Resonant Spark - Ignite + Echo (execution order and gameplay identity provisional)
+5. Resonant Spark - Ignite -> Echo
 6. Detonator - Ignite -> Explode
 7. Capacitor - Amplify -> Store
 8. Turbine - Release -> Amplify
@@ -315,9 +315,23 @@ Attribute combinations are stable.
 
 The core object catalog targets unique dual-attribute combinations.
 
+Target framework:
+
 - 7 single-attribute base objects
 - 21 unique dual-attribute combinations
 - 28 total core objects
+
+Current runtime implementation:
+
+- 7 single-attribute objects implemented
+- 21 dual-attribute objects implemented
+- 28 executable objects total
+
+Resonant Spark (`ignite + echo`) is now finalized as `ignite -> echo`.
+Under current Echo rules, its Echo step is a deterministic no-op at the ignition boundary.
+Catalog structure and execution order are finalized for the current 28-object framework.
+Resonant Spark's current gameplay identity is intentionally minimal and may be revisited during
+balancing/content evaluation, but this does not reopen Echo semantics or the 28-pair framework.
 
 Dual combinations are unordered for catalog uniqueness.
 
@@ -334,6 +348,8 @@ Catalog root metadata:
 - `availableOrder`
 - Prototype QA ordering only
 - Not player inventory, ownership, or unlock data
+- Intentionally not the full runtime catalog list
+- Absence from `availableOrder` does not imply absence from `objects.lua`
 
 Object identity:
 
@@ -445,6 +461,7 @@ Implemented:
 - Runtime Slot Manager
 - Keyboard Slot Editing
 - Ordered Multi-Attribute Execution
+- Behavior-preserving simulator modular refactor
 - Ignite
 - Amplify
 - Store
@@ -452,6 +469,9 @@ Implemented:
 - Charge
 - Echo
 - Explode
+- 7 single-attribute objects
+- 21 dual-attribute objects
+- 28 executable catalog objects
 - Deterministic Simulation
 - Object Catalog Validation
 - Deterministic Catalog Error Ordering
@@ -464,7 +484,7 @@ Finalized Specifications:
 
 Pending Implementation:
 
-- Full 7-single / 21-dual / 28-total catalog rollout
+- Catalog completeness enforcement policy decision
 
 ---
 
@@ -496,11 +516,11 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Reconcile documentation and establish pre-refactor baseline
-2. Behavior-preserving simulator refactor
-3. Complete the 7-single / 21-dual / 28-total object catalog
-4. Stage progression
-5. Reward and upgrade systems
+1. Decide whether to add catalog completeness enforcement
+2. Stage progression
+3. Reward and upgrade systems
+4. Inventory/unlock/save systems
+5. Post-catalog balancing and tuning
 
 ---
 
@@ -565,8 +585,7 @@ Echo replay is not a separate global simulation step.
 Echo cannot replay Echo or synthetic replay.
 
 Pulse Valve, Kaleidoscope, and Cluster Bomb execution orders were changed to preserve meaningful behavior without special-case execution rules.
-
-Resonant Spark remains provisional.
+Resonant Spark is finalized as `Ignite -> Echo`.
 
 ---
 
@@ -588,7 +607,6 @@ Gameplay depth should emerge from the interaction of simple systems rather than 
 The following items are unresolved and must not be treated as finalized:
 
 - Exact Charge efficiency parameters
-- Resonant Spark (Ignite + Echo) execution identity/order
 - Complete Explode detailed specification
 - Whether upgrades are permanent, run-based, or object-instance based
 - Exact numerical balance values
