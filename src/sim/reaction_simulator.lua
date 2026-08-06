@@ -53,6 +53,18 @@ local ATTRIBUTE_HANDLERS = {
     return ok("Reaction value amplified.")
   end,
 
+  store = function(state, _params, _ctx)
+    if not state.started then
+      return fail("ERR_PRECONDITION", "Store requires an active reaction.")
+    end
+    if state.ended then
+      return fail("ERR_INVALID_STATE", "Store cannot run after explosion.")
+    end
+
+    state.storedRV = state.storedRV + state.rv
+    return ok("Stored current RV into bank.")
+  end,
+
   explode = function(state, params, _ctx)
     if not state.started then
       return fail("ERR_PRECONDITION", "Explode requires an active reaction.")
@@ -66,7 +78,10 @@ local ATTRIBUTE_HANDLERS = {
       return fail("ERR_INVALID_PARAM", "Explode requires numeric params.damageRatio.")
     end
 
-    state.damage = state.damage + (state.rv * damage_ratio)
+    local total_rv = state.rv + state.storedRV
+    state.damage = state.damage + (total_rv * damage_ratio)
+    state.rv = 0
+    state.storedRV = 0
     state.ended = true
     return ok("Explosion converted RV to damage.")
   end,
@@ -96,6 +111,7 @@ end
 function M.simulate(stageDef, objectDefs, runtimeSlots)
   local state = {
     rv = 0,
+    storedRV = 0,
     damage = 0,
     started = false,
     ended = false,
@@ -153,6 +169,7 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
       end
 
       local rv_before = state.rv
+      local stored_before = state.storedRV
       local damage_before = state.damage
       local ctx = {
         step = step,
@@ -163,6 +180,7 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
       }
       local handler_result = handler(state, object_def.params, ctx)
       local rv_after = state.rv
+      local stored_after = state.storedRV
       local damage_after = state.damage
 
       log[#log + 1] = {
@@ -172,6 +190,8 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
         attribute = attribute,
         rvBefore = rv_before,
         rvAfter = rv_after,
+        storedBefore = stored_before,
+        storedAfter = stored_after,
         damageBefore = damage_before,
         damageAfter = damage_after,
         note = handler_result.note,

@@ -1,7 +1,7 @@
 -- Prototype 0.1 object definitions (data-only).
 
 local objects = {
-  availableOrder = { "spark", "fuel", "bomb" },
+  availableOrder = { "spark", "fuel", "crystal", "bomb" },
 
   spark = {
     attribute = "ignite",
@@ -14,6 +14,10 @@ local objects = {
     params = {
       multiplier = 2,
     },
+  },
+  crystal = {
+    attribute = "store",
+    params = {},
   },
   bomb = {
     attribute = "explode",
