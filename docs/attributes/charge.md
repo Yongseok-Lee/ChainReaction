@@ -76,7 +76,7 @@ Ineligible (do not consume Charged):
 - Ignite
 - Release
 - Charge
-- Echo (interaction deferred)
+- Echo itself
 
 Consumption rule:
 
@@ -84,6 +84,12 @@ Consumption rule:
 2. It receives Charge efficiency bonus by its formula schema.
 3. Charged is consumed immediately after that eligible step.
 4. `reactionState` returns to `Stable`.
+
+Echo interaction:
+
+- Echo itself is ineligible and does not consume Charged.
+- Replayed Amplify or Store evaluates current runtime state and can consume active Charged.
+- Replayed Release does not consume Charged.
 
 ---
 
@@ -153,14 +159,22 @@ Required per-step fields:
 - `code`
 - `reactionStateBefore`
 - `reactionStateAfter`
-- `chargeApplied` (boolean)
+- `chargeActivated` (boolean)
+- `chargeBonusApplied` (boolean)
 - `chargeConsumed` (boolean)
 
 Guidance:
 
-- Charge step: `chargeApplied = false`, `chargeConsumed = false`
-- Charged eligible step: `chargeApplied = true`, `chargeConsumed = true`
-- Ineligible step while Charged: both `false`
+- Charge activation step:
+  - `chargeActivated` may be true
+  - `chargeBonusApplied = false`
+  - `chargeConsumed = false`
+- Charged eligible step (Amplify/Store/Explode or Echo replay of Amplify/Store):
+  - `chargeBonusApplied = true`
+  - `chargeConsumed = true`
+- Ineligible step while Charged:
+  - `chargeBonusApplied = false`
+  - `chargeConsumed = false`
 
 ---
 
@@ -354,7 +368,6 @@ Then initial state resets to:
 The following remain unresolved and are intentionally deferred:
 
 - Exact numeric values for Charge efficiencies
-- Echo interaction with Charge
 - Any typed-property conversion behavior
 - Any non-linear/branching interactions
 - Extended balancing rules beyond the parameterized schemas
@@ -370,7 +383,10 @@ The following remain unresolved and are intentionally deferred:
 - [ ] Eligible consumers are exactly: Amplify, Store, Explode.
 - [ ] Ignite does not consume Charged.
 - [ ] Release does not consume Charged.
-- [ ] Charge does not consume Charged.
+- [ ] Charge itself does not consume Charged.
+- [ ] Echo itself does not consume Charged.
+- [ ] Echo replay of Amplify/Store may consume active Charged.
+- [ ] Echo replay of Release does not consume Charged.
 - [ ] Charged is consumed immediately after one eligible charged step.
 - [ ] State returns to Stable after charged eligible consumption.
 - [ ] Formula schemas use parameters only (no hardcoded constants).

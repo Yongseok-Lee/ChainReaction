@@ -424,10 +424,7 @@ Echo is a deterministic one-step handler replay mechanic:
 
 ## Conflict Check Against Existing Docs
 
-- Conflict with `docs/gameplay.md`:
-  - `gameplay.md` currently marks Echo as unresolved.
-  - This document finalizes Echo behavior and several dual-object execution orders.
-  - Reconciliation update to `gameplay.md` will be required.
+- `docs/gameplay.md` and this document are aligned on Echo being finalized and implemented.
 
 - Compatibility with `docs/attributes/release.md`:
   - Compatible (Release replay is valid and can be no-op at `StoredRV=0`).

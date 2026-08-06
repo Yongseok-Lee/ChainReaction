@@ -327,6 +327,48 @@ Working execution orders may be finalized individually.
 Some execution orders may remain provisional while attribute rules are prototyped.
 Attribute execution order must be stored as ordered data.
 
+## Object Catalog Schema (Prototype 0.95)
+
+Catalog root metadata:
+
+- `availableOrder`
+- Prototype QA ordering only
+- Not player inventory, ownership, or unlock data
+
+Object identity:
+
+- Catalog map key is the canonical object identity
+- Internal object `id`/`key` fields are forbidden
+
+Allowed object fields:
+
+- `attributes`
+- optional `orderStatus`
+
+`orderStatus` rules:
+
+- Omitted is valid
+- `"provisional"` is valid
+- Metadata only; does not change simulation behavior
+
+Attribute-entry fields:
+
+- `key`
+- `params`
+
+Validation contract:
+
+- `attributes` must be a dense ordered array
+- Object attribute count must be one or two
+- Duplicate attribute keys are invalid
+- Unsupported attribute keys are invalid
+- Unknown object fields are invalid
+- Unknown attribute-entry fields are invalid
+- Duplicate unordered dual pairs are invalid
+- `availableOrder` keys must exist and cannot repeat
+- Catalog structural validation runs before simulation
+- Semantic parameter validation remains handler-owned
+
 ## Upgrade Path Convergence
 
 A single-attribute object can gain one of the other six attributes.
@@ -408,8 +450,11 @@ Implemented:
 - Store
 - Release
 - Charge
+- Echo
 - Explode
 - Deterministic Simulation
+- Object Catalog Validation
+- Deterministic Catalog Error Ordering
 
 Finalized Specifications:
 
@@ -419,7 +464,7 @@ Finalized Specifications:
 
 Pending Implementation:
 
-- Echo
+- Full 7-single / 21-dual / 28-total catalog rollout
 
 ---
 
@@ -451,11 +496,11 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Implement and test Echo
-2. Reconcile Resonant Spark (Ignite + Echo)
-3. Introduce remaining dual-attribute objects gradually
-4. Design reward and upgrade systems
-5. Build stage progression / roguelite loop
+1. Reconcile documentation and establish pre-refactor baseline
+2. Behavior-preserving simulator refactor
+3. Complete the 7-single / 21-dual / 28-total object catalog
+4. Stage progression
+5. Reward and upgrade systems
 
 ---
 
@@ -544,9 +589,11 @@ The following items are unresolved and must not be treated as finalized:
 
 - Exact Charge efficiency parameters
 - Resonant Spark (Ignite + Echo) execution identity/order
+- Complete Explode detailed specification
 - Whether upgrades are permanent, run-based, or object-instance based
 - Exact numerical balance values
 - Object naming/theme pass
+- Reward/upgrade/save/inventory runtime systems
 
 ---
 
@@ -554,7 +601,7 @@ The following items are unresolved and must not be treated as finalized:
 
 - Release: docs/attributes/release.md - finalized and implemented
 - Charge: docs/attributes/charge.md - finalized and implemented
-- Echo: docs/attributes/echo.md - finalized, pending implementation
+- Echo: docs/attributes/echo.md - finalized and implemented
 - Explode: detailed specification not yet finalized
 
 ---
