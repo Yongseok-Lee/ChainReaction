@@ -24,6 +24,7 @@ local objects = {
       },
     },
   },
+  
   fuel = {
     attributes = {
       {
@@ -34,6 +35,7 @@ local objects = {
       },
     },
   },
+
   crystal = {
     attributes = {
       {
@@ -42,6 +44,7 @@ local objects = {
       },
     },
   },
+
   valve = {
     attributes = {
       {
@@ -50,6 +53,7 @@ local objects = {
       },
     },
   },
+
   catalyst = {
     attributes = {
       {
@@ -62,6 +66,7 @@ local objects = {
       },
     },
   },
+
   mirror = {
     attributes = {
       {
@@ -70,6 +75,7 @@ local objects = {
       },
     },
   },
+
   bomb = {
     attributes = {
       {
@@ -100,6 +106,151 @@ local objects = {
     },
   },
 
+  flare = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+    },
+  },
+
+  ember_core = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "store",
+        params = {},
+      },
+    },
+  },
+
+  primer = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "release",
+        params = {},
+      },
+    },
+  },
+
+  arc_spark = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+    },
+  },
+
+  detonator = {
+    attributes = {
+      {
+        key = "ignite",
+        params = {
+          baseRV = 1,
+        },
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
+    },
+  },
+
+  capacitor = {
+    attributes = {
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+      {
+        key = "store",
+        params = {},
+      },
+    },
+  },
+
+  turbine = {
+    attributes = {
+      {
+        key = "release",
+        params = {},
+      },
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+    },
+  },
+
+  resonator = {
+    attributes = {
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+      {
+        key = "echo",
+        params = {},
+      },
+    },
+  },
+
+  warhead = {
+    attributes = {
+      {
+        key = "amplify",
+        params = {
+          multiplier = 2,
+        },
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
+    },
+  },
+
   accumulator = {
     attributes = {
       {
@@ -109,6 +260,132 @@ local objects = {
       {
         key = "release",
         params = {},
+      },
+    },
+  },
+
+  prismatic_crystal = {
+    attributes = {
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+      {
+        key = "store",
+        params = {},
+      },
+    },
+  },
+
+  memory_crystal = {
+    attributes = {
+      {
+        key = "store",
+        params = {},
+      },
+      {
+        key = "echo",
+        params = {},
+      },
+    },
+  },
+
+  reservoir_bomb = {
+    attributes = {
+      {
+        key = "store",
+        params = {},
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
+    },
+  },
+
+  converter_valve = {
+    attributes = {
+      {
+        key = "release",
+        params = {},
+      },
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+    },
+  },
+
+  pulse_valve = {
+    attributes = {
+      {
+        key = "echo",
+        params = {},
+      },
+      {
+        key = "release",
+        params = {},
+      },
+    },
+  },
+
+  kaleidoscope = {
+    attributes = {
+      {
+        key = "echo",
+        params = {},
+      },
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+    },
+  },
+
+  elemental_bomb = {
+    attributes = {
+      {
+        key = "charge",
+        params = {
+          chargeAmplifyEfficiency = 1.25,
+          chargeStoreEfficiency = 1.25,
+          chargeExplodeEfficiency = 1.25,
+        },
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
+      },
+    },
+  },
+
+  cluster_bomb = {
+    attributes = {
+      {
+        key = "echo",
+        params = {},
+      },
+      {
+        key = "explode",
+        params = {
+          damageRatio = 1,
+        },
       },
     },
   },
