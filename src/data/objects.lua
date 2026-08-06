@@ -1,4 +1,4 @@
--- Prototype 0.7 object definitions (data-only).
+-- Prototype 0.9 object definitions (data-only).
 
 local objects = {
   availableOrder = {
@@ -7,6 +7,7 @@ local objects = {
     "crystal",
     "valve",
     "catalyst",
+    "mirror",
     "bomb",
     "reactor",
     "accumulator",
@@ -58,6 +59,14 @@ local objects = {
           chargeStoreEfficiency = 1.25,
           chargeExplodeEfficiency = 1.25,
         },
+      },
+    },
+  },
+  mirror = {
+    attributes = {
+      {
+        key = "echo",
+        params = {},
       },
     },
   },

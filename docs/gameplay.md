@@ -237,9 +237,22 @@ Reference:
 
 Purpose:
 
-Repeat a reaction effect.
+Replay the immediately previous successful eligible real attribute once.
 
-The exact repetition targets, timing, and interaction rules are intentionally unresolved during Prototype 0.x.
+Rules:
+
+- Eligible Echo sources are Amplify, Store, and Release.
+- Echo reuses the source attribute's parameters.
+- Replay is evaluated against current runtime state.
+- Echo repeats handler behavior, not recorded numerical deltas.
+- Ignite, Charge, Echo, Explode, and synthetic Echo replays are ineligible.
+- Echo does not search backward past the immediately previous real attribute.
+- No valid source produces a successful deterministic no-op.
+- Echo does not introduce post-terminal execution exceptions.
+
+Reference:
+
+`docs/attributes/echo.md`
 
 ---
 
@@ -275,7 +288,7 @@ Explosion consumes the reaction.
 2. Ember Core - Ignite -> Store
 3. Primer - Ignite -> Release
 4. Arc Spark - Ignite -> Charge
-5. Resonant Spark - Ignite -> Echo
+5. Resonant Spark - Ignite + Echo (execution order and gameplay identity provisional)
 6. Detonator - Ignite -> Explode
 7. Capacitor - Amplify -> Store
 8. Turbine - Release -> Amplify
@@ -287,32 +300,32 @@ Explosion consumes the reaction.
 14. Memory Crystal - Store -> Echo
 15. Reservoir Bomb - Store -> Explode
 16. Converter Valve - Release -> Charge
-17. Pulse Valve - Release -> Echo
+17. Pulse Valve - Echo -> Release
 18. Pressure Bomb - Release -> Explode
-19. Kaleidoscope - Charge -> Echo
+19. Kaleidoscope - Echo -> Charge
 20. Elemental Bomb - Charge -> Explode
-21. Cluster Bomb - Explode -> Echo
+21. Cluster Bomb - Echo -> Explode
 
 Object names are provisional until the visual theme and world setting are finalized.
-Attribute combinations and execution order are the stable design.
+Attribute combinations are stable.
 
 ---
 
 # 7. Core Object Framework
 
-The core object catalog is fixed by attribute combinations.
+The core object catalog targets unique dual-attribute combinations.
 
 - 7 single-attribute base objects
-- 21 unique dual-attribute upgraded objects
+- 21 unique dual-attribute combinations
 - 28 total core objects
 
 Dual combinations are unordered for catalog uniqueness.
 
 - Amplify + Store and Store + Amplify are the same catalog combination.
 
-Each dual-attribute object has one explicit internal execution order.
-
-- Attribute execution order must be stored as ordered data.
+Working execution orders may be finalized individually.
+Some execution orders may remain provisional while attribute rules are prototyped.
+Attribute execution order must be stored as ordered data.
 
 ## Upgrade Path Convergence
 
@@ -389,24 +402,22 @@ Implemented:
 
 - Runtime Slot Manager
 - Keyboard Slot Editing
+- Ordered Multi-Attribute Execution
 - Ignite
 - Amplify
 - Store
 - Release
+- Charge
 - Explode
 - Deterministic Simulation
-- Runtime Slot Snapshot
 
 Finalized Specifications:
 
 - Release
 - Charge
+- Echo
 
 Pending Implementation:
-
-- Charge
-
-Planned:
 
 - Echo
 
@@ -440,11 +451,11 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Implement and test Charge
-2. Finalize Echo rule specification
-3. Implement and test Echo
-4. Add generic ordered multi-attribute object support
-5. Introduce dual-attribute objects gradually
+1. Implement and test Echo
+2. Reconcile Resonant Spark (Ignite + Echo)
+3. Introduce remaining dual-attribute objects gradually
+4. Design reward and upgrade systems
+5. Build stage progression / roguelite loop
 
 ---
 
@@ -474,7 +485,7 @@ Target:
 - 21 dual-attribute objects
 - 28 total core objects
 
-Dual-attribute execution order is explicit and data-driven.
+Dual-attribute execution order is explicit and data-driven, with some entries provisional during prototyping.
 
 Split remains postponed.
 
@@ -498,6 +509,22 @@ Core framework remains 7 single + 21 dual = 28 objects.
 
 ---
 
+## Echo Replay Decision
+
+Echo uses eligible handler replay, not delta replay.
+
+Delta replay was rejected because it can violate resource invariants, such as producing negative StoredRV when replaying Release.
+
+Echo replay is not a separate global simulation step.
+
+Echo cannot replay Echo or synthetic replay.
+
+Pulse Valve, Kaleidoscope, and Cluster Bomb execution orders were changed to preserve meaningful behavior without special-case execution rules.
+
+Resonant Spark remains provisional.
+
+---
+
 ## Simulation Philosophy
 
 The simulator should remain:
@@ -516,19 +543,18 @@ Gameplay depth should emerge from the interaction of simple systems rather than 
 The following items are unresolved and must not be treated as finalized:
 
 - Exact Charge efficiency parameters
-- Echo interaction with Charge
-- Echo target and repetition rules
-- How Explode + Echo works with reaction termination
+- Resonant Spark (Ignite + Echo) execution identity/order
 - Whether upgrades are permanent, run-based, or object-instance based
 - Exact numerical balance values
+- Object naming/theme pass
 
 ---
 
 # 14. Detailed Attribute Specifications
 
-- Release: docs/attributes/release.md - finalized
-- Charge: docs/attributes/charge.md - finalized
-- Echo: not finalized
+- Release: docs/attributes/release.md - finalized and implemented
+- Charge: docs/attributes/charge.md - finalized and implemented
+- Echo: docs/attributes/echo.md - finalized, pending implementation
 - Explode: detailed specification not yet finalized
 
 ---

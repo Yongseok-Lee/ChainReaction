@@ -1,4 +1,4 @@
--- Prototype 0.8 deterministic reaction simulator.
+-- Prototype 0.9 deterministic reaction simulator.
 
 local M = {}
 
@@ -46,7 +46,13 @@ local function parse_charge_efficiencies(params)
   }, nil
 end
 
-local ATTRIBUTE_HANDLERS = {
+local function is_eligible_echo_source(attribute_key)
+  return attribute_key == "amplify" or attribute_key == "store" or attribute_key == "release"
+end
+
+local ATTRIBUTE_HANDLERS
+
+ATTRIBUTE_HANDLERS = {
   ignite = function(state, params, _ctx)
     if state.started then
       return fail("ERR_INVALID_STATE", "Ignite already processed.")
@@ -139,6 +145,134 @@ local ATTRIBUTE_HANDLERS = {
       chargeActivated = true,
       chargeBonusApplied = false,
       chargeConsumed = false,
+    })
+  end,
+
+  echo = function(state, _params, ctx)
+    if not state.started then
+      return fail("ERR_PRECONDITION", "Echo requires an active reaction.", {
+        echoApplied = false,
+        echoNoopReason = nil,
+        echoReplaySucceeded = nil,
+        echoReplayErrorCode = nil,
+      })
+    end
+    if state.ended then
+      return fail("ERR_INVALID_STATE", "Echo cannot run after explosion.", {
+        echoApplied = false,
+        echoNoopReason = nil,
+        echoReplaySucceeded = nil,
+        echoReplayErrorCode = nil,
+      })
+    end
+
+    local source = state.lastRealStep
+    if source == nil then
+      return ok("Echo no-op: no previous real step.", {
+        echoApplied = false,
+        echoSourceStep = nil,
+        echoSourceSlotIndex = nil,
+        echoSourceObjectKey = nil,
+        echoSourceAttribute = nil,
+        echoSourceAttributeIndex = nil,
+        echoNoopReason = "no-previous-real-step",
+        echoReplaySucceeded = nil,
+        echoReplayErrorCode = nil,
+      })
+    end
+
+    if source.succeeded ~= true then
+      return ok("Echo no-op: previous real step failed.", {
+        echoApplied = false,
+        echoSourceStep = source.step,
+        echoSourceSlotIndex = source.slotIndex,
+        echoSourceObjectKey = source.objectKey,
+        echoSourceAttribute = source.attribute,
+        echoSourceAttributeIndex = source.attributeIndex,
+        echoNoopReason = "previous-step-failed",
+        echoReplaySucceeded = nil,
+        echoReplayErrorCode = nil,
+      })
+    end
+
+    if source.eligibleEchoSource ~= true then
+      return ok("Echo no-op: previous real step ineligible.", {
+        echoApplied = false,
+        echoSourceStep = source.step,
+        echoSourceSlotIndex = source.slotIndex,
+        echoSourceObjectKey = source.objectKey,
+        echoSourceAttribute = source.attribute,
+        echoSourceAttributeIndex = source.attributeIndex,
+        echoNoopReason = "previous-step-ineligible",
+        echoReplaySucceeded = nil,
+        echoReplayErrorCode = nil,
+      })
+    end
+
+    local replay_handler = ATTRIBUTE_HANDLERS[source.attribute]
+    if type(replay_handler) ~= "function" then
+      return fail("ERR_UNSUPPORTED_ATTRIBUTE", "Echo replay source handler is missing.", {
+        echoApplied = true,
+        echoSourceStep = source.step,
+        echoSourceSlotIndex = source.slotIndex,
+        echoSourceObjectKey = source.objectKey,
+        echoSourceAttribute = source.attribute,
+        echoSourceAttributeIndex = source.attributeIndex,
+        echoNoopReason = nil,
+        echoReplaySucceeded = false,
+        echoReplayErrorCode = "ERR_UNSUPPORTED_ATTRIBUTE",
+      })
+    end
+
+    local replay_ctx = {
+      step = ctx.step,
+      slotIndex = ctx.slotIndex,
+      objectKey = ctx.objectKey,
+      attributeIndex = ctx.attributeIndex,
+      attributeCount = ctx.attributeCount,
+      attribute = source.attribute,
+      stage = ctx.stage,
+      isEchoReplay = true,
+      originAttribute = "echo",
+      echoSourceStep = source.step,
+      echoSourceSlotIndex = source.slotIndex,
+      echoSourceObjectKey = source.objectKey,
+      echoSourceAttribute = source.attribute,
+      echoSourceAttributeIndex = source.attributeIndex,
+    }
+
+    local replay_result = replay_handler(state, source.params, replay_ctx)
+    local replay_meta = replay_result.meta or {}
+    if not replay_result.ok then
+      return fail(replay_result.code or "ERR_HANDLER", replay_result.note or "Echo replay failed.", {
+        echoApplied = true,
+        echoSourceStep = source.step,
+        echoSourceSlotIndex = source.slotIndex,
+        echoSourceObjectKey = source.objectKey,
+        echoSourceAttribute = source.attribute,
+        echoSourceAttributeIndex = source.attributeIndex,
+        echoNoopReason = nil,
+        echoReplaySucceeded = false,
+        echoReplayErrorCode = replay_result.code or "ERR_HANDLER",
+        chargeActivated = replay_meta.chargeActivated == true,
+        chargeBonusApplied = replay_meta.chargeBonusApplied == true,
+        chargeConsumed = replay_meta.chargeConsumed == true,
+      })
+    end
+
+    return ok("Echo replayed previous eligible attribute.", {
+      echoApplied = true,
+      echoSourceStep = source.step,
+      echoSourceSlotIndex = source.slotIndex,
+      echoSourceObjectKey = source.objectKey,
+      echoSourceAttribute = source.attribute,
+      echoSourceAttributeIndex = source.attributeIndex,
+      echoNoopReason = nil,
+      echoReplaySucceeded = true,
+      echoReplayErrorCode = nil,
+      chargeActivated = replay_meta.chargeActivated == true,
+      chargeBonusApplied = replay_meta.chargeBonusApplied == true,
+      chargeConsumed = replay_meta.chargeConsumed == true,
     })
   end,
 
@@ -324,6 +458,7 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
       chargeStoreEfficiency = 1,
       chargeExplodeEfficiency = 1,
     },
+    lastRealStep = nil,
     started = false,
     ended = false,
   }
@@ -399,6 +534,18 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
         local reaction_state_after = state.reactionState
         local handler_meta = handler_result.meta or {}
 
+        state.lastRealStep = {
+          attribute = attribute_key,
+          params = attribute_entry.params,
+          step = step,
+          slotIndex = slot_index,
+          objectKey = object_key,
+          attributeIndex = attribute_index,
+          attributeCount = attribute_count,
+          succeeded = handler_result.ok == true,
+          eligibleEchoSource = handler_result.ok == true and is_eligible_echo_source(attribute_key),
+        }
+
         log[#log + 1] = {
           step = step,
           slotIndex = slot_index,
@@ -417,6 +564,15 @@ function M.simulate(stageDef, objectDefs, runtimeSlots)
           chargeActivated = handler_meta.chargeActivated == true,
           chargeBonusApplied = handler_meta.chargeBonusApplied == true,
           chargeConsumed = handler_meta.chargeConsumed == true,
+          echoApplied = handler_meta.echoApplied,
+          echoSourceStep = handler_meta.echoSourceStep,
+          echoSourceSlotIndex = handler_meta.echoSourceSlotIndex,
+          echoSourceObjectKey = handler_meta.echoSourceObjectKey,
+          echoSourceAttribute = handler_meta.echoSourceAttribute,
+          echoSourceAttributeIndex = handler_meta.echoSourceAttributeIndex,
+          echoNoopReason = handler_meta.echoNoopReason,
+          echoReplaySucceeded = handler_meta.echoReplaySucceeded,
+          echoReplayErrorCode = handler_meta.echoReplayErrorCode,
           note = handler_result.note,
           code = handler_result.code,
         }

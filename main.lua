@@ -1,4 +1,4 @@
--- Prototype 0.4 debug visualization entry point.
+-- Prototype 0.9 debug visualization entry point.
 
 local RunPrototype = require("src.core.run_prototype")
 
@@ -25,7 +25,7 @@ function love.load()
 end
 
 function love.update(_dt)
-  -- Prototype 0.1 is a single-run deterministic simulation.
+  -- Current prototype uses single-run deterministic simulation.
 end
 
 function love.draw()
@@ -39,7 +39,7 @@ function love.draw()
     y = y + line_height
   end
 
-  print_line("ChainReaction Prototype 0.4")
+  print_line("ChainReaction Prototype 0.9")
   print_line("Controls: Left/Right select | Up/Down cycle object | Del clear")
   print_line("          S mark/swap slots | R reset slots | Space run simulation")
   print_line("")
@@ -139,6 +139,25 @@ function love.draw()
     print_line(line_one)
     print_line(line_two)
     print_line(line_three)
+    if entry.attribute == "echo" then
+      local line_four = string.format(
+        "  ECHO AP %s | SRC step:%s slot:%s obj:%s attr:%s idx:%s",
+        to_text(entry.echoApplied),
+        to_text(entry.echoSourceStep),
+        to_text(entry.echoSourceSlotIndex),
+        to_text(entry.echoSourceObjectKey),
+        to_text(entry.echoSourceAttribute),
+        to_text(entry.echoSourceAttributeIndex)
+      )
+      local line_five = string.format(
+        "  ECHO OK %s | NOOP %s | ERR %s",
+        to_text(entry.echoReplaySucceeded),
+        to_text(entry.echoNoopReason),
+        to_text(entry.echoReplayErrorCode)
+      )
+      print_line(line_four)
+      print_line(line_five)
+    end
   end
 end
 
