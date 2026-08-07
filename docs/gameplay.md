@@ -1,4 +1,4 @@
-# ChainReaction - Gameplay Design v1.0
+# ChainReaction - Gameplay Design v1.1
 
 > This document is the Single Source of Truth (SSOT) for gameplay design.
 > If implementation conflicts with this document, this document takes precedence.
@@ -428,19 +428,30 @@ Simulation rules belong to the simulator.
 
 ## Separation of Responsibility
 
-Stage Definition
+Stage Catalog
 
 ↓
 
-Slot Manager
+Stage Manager
 
 ↓
 
-Reaction Simulator
+Run Prototype
+
+├─ Slot Manager
+└─ Reaction Simulator
 
 ↓
 
 Result
+
+Ownership:
+
+- Stage Catalog owns immutable-by-convention stage definitions and order.
+- Stage Manager owns current stage index, lookup, validation, and transition.
+- Run Prototype owns runtime phase, simulation result, input handling, and SlotManager lifecycle.
+- Slot Manager owns mutable slot state for the active stage.
+- Reaction Simulator remains deterministic and stage-agnostic.
 
 Each system owns only its own responsibility.
 
@@ -460,6 +471,10 @@ Implemented:
 
 - Runtime Slot Manager
 - Keyboard Slot Editing
+- Stage Progression
+- 3 prototype stages
+- Explicit runtime phase lifecycle (`editing`, `resolved_clear`, `resolved_fail`, `run_complete`)
+- Per-stage `allowedObjectKeys` object cycling
 - Ordered Multi-Attribute Execution
 - Behavior-preserving simulator modular refactor
 - Ignite
@@ -482,9 +497,41 @@ Finalized Specifications:
 - Charge
 - Echo
 
-Pending Implementation:
+## Stage Progression (Prototype 1.1)
 
-- Catalog completeness enforcement policy decision
+Implemented stages:
+
+- Stage 1: `stage_01_basics`
+  - `targetDamage`: 2
+  - Teaching focus: Amplify
+- Stage 2: `stage_02_storage`
+  - `targetDamage`: 4
+  - Teaching focus: Store + Release
+- Stage 3: `stage_03_charge_echo`
+  - `targetDamage`: 5
+  - Teaching focus: Charge + Echo
+
+Lifecycle:
+
+- `editing` -> `resolved_clear` or `resolved_fail` after simulation
+- `resolved_clear` + `N` -> next stage `editing`
+- final-stage `resolved_clear` + `N` -> `run_complete`
+- `run_complete` + `T` -> stage 1 `editing`
+
+Stale-result rule:
+
+- Any successful slot mutation after a resolved result clears the old result and returns to `editing`.
+
+Stage slot policy:
+
+- Retry preserves edited slots.
+- `R` restores current stage initial slots.
+- Advancing creates a fresh `SlotManager` from the next `StageDefinition`.
+
+`allowedObjectKeys` policy:
+
+- Stage teaching/QA selection only.
+- Not inventory, ownership, or unlock state.
 
 ---
 
@@ -516,11 +563,11 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Decide whether to add catalog completeness enforcement
-2. Stage progression
-3. Reward and upgrade systems
-4. Inventory/unlock/save systems
-5. Post-catalog balancing and tuning
+1. Reward system
+2. Upgrade acquisition/application model
+3. Run inventory / owned object model
+4. Stage clear reward transition
+5. Save/load later
 
 ---
 

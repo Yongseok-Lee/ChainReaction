@@ -1,4 +1,4 @@
--- Prototype 0.9 debug visualization entry point.
+-- Prototype 1.1 debug visualization entry point.
 
 local RunPrototype = require("src.core.run_prototype")
 
@@ -25,7 +25,7 @@ function love.load()
 end
 
 function love.update(_dt)
-  -- Current prototype uses single-run deterministic simulation.
+  -- Stage progression is deterministic and driven by explicit input actions.
 end
 
 function love.draw()
@@ -42,6 +42,7 @@ function love.draw()
   print_line("ChainReaction Reaction Engine Prototype")
   print_line("Controls: Left/Right select | Up/Down cycle object | Del clear")
   print_line("          S mark/swap slots | R reset slots | Space run simulation")
+  print_line("          N advance after clear | T restart run after completion")
   print_line("")
 
   if not App.runtime then
@@ -50,6 +51,9 @@ function love.draw()
   end
 
   local view = App.runtime:getState()
+  print_line("Stage: " .. to_text(view.currentStageIndex) .. " / " .. to_text(view.stageCount))
+  print_line("Stage Key: " .. to_text(view.currentStageKey))
+  print_line("Phase: " .. to_text(view.phase))
   print_line("Target Damage: " .. to_text(view.targetDamage))
   print_line("Selected Slot: " .. to_text(view.selectedSlotIndex))
   print_line("Swap Source: " .. to_text(view.swapSourceIndex))
@@ -82,6 +86,13 @@ function love.draw()
 
   if not view.result then
     print_line("Result: not executed (press Space)")
+    if view.runComplete then
+      print_line("Next: Press T to restart run.")
+    elseif view.canAdvance then
+      print_line("Next: Press N to advance stage.")
+    else
+      print_line("Next: Edit slots, then press Space to simulate.")
+    end
     return
   end
 
@@ -123,6 +134,15 @@ function love.draw()
     for _, line in ipairs(error_context_lines) do
       print_line(line)
     end
+  end
+  if view.runComplete then
+    print_line("Next: Run complete. Press T to restart.")
+  elseif view.canAdvance then
+    print_line("Next: Stage cleared. Press N to advance.")
+  elseif view.phase == "resolved_fail" then
+    print_line("Next: Edit and retry (Space), or press R to reset stage.")
+  else
+    print_line("Next: Edit slots, then press Space to simulate.")
   end
   print_line("")
   print_line("Execution Log:")

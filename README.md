@@ -6,6 +6,19 @@ Love2D 11.5 deterministic puzzle prototype for a data-driven roguelite concept.
 
 Implemented prototype slice:
 
+- 3-stage deterministic stage progression
+- StageManager integration
+- Stage-specific allowed object cycling
+- Explicit runtime phases:
+  - editing
+  - resolved_clear
+  - resolved_fail
+  - run_complete
+- N advances only after clear
+- T restarts after run completion
+- Slot edits invalidate stale simulation results
+- Advancing creates fresh stage slot state
+- Reset restores current stage initial slots
 - Runtime slot editing with keyboard controls
 - Deterministic reaction simulation
 - Behavior-preserving simulator modular refactor
@@ -18,17 +31,14 @@ Implemented prototype slice:
   - Echo
   - Explode
 - 7 core single-attribute objects
-- 20 finalized dual-attribute objects
-- 27 executable catalog objects total
+- 21 finalized dual-attribute objects
+- 28 executable catalog objects total
 - Ordered one/two-attribute object execution
 - Echo eligible-handler replay behavior
 - Strict deterministic object catalog structural validation
 
 Not implemented yet:
 
-- Resonant Spark (`Ignite + Echo`) execution identity/order finalization
-- Complete 28th runtime object rollout
-- Stage progression loop
 - Reward and upgrade systems
 - Inventory/unlock/save systems
 
@@ -66,13 +76,16 @@ Design Goals:
 
 ## Current Architecture Snapshot
 
-- Stage definition remains immutable (`src/data/prototype_stage.lua`).
-- SlotManager owns mutable runtime slots (`src/core/slot_manager.lua`).
+- `src/data/stage_catalog.lua` owns immutable-by-convention stage definitions and order.
+- `src/core/stage_manager.lua` owns stage index, lookup, transition, and stage validation.
+- `src/core/run_prototype.lua` owns runtime phase, result invalidation, input handling, and SlotManager lifecycle.
+- `src/core/slot_manager.lua` owns mutable runtime slots for the active stage.
 - `src/sim/reaction_simulator.lua` owns simulation orchestration and result assembly.
 - `src/sim/simulation_state.lua` owns runtime state creation.
 - `src/sim/attribute_handlers.lua` owns attribute gameplay rules.
 - `src/sim/attribute_executor.lua` owns top-level attribute execution, logging, and history updates.
 - `src/data/object_catalog_validator.lua` enforces strict catalog schema before simulation.
+- The simulator remains stage-agnostic; stage progression never changes simulator rules.
 - `availableOrder` in `src/data/objects.lua` is a compact keyboard QA list, not full catalog/inventory/unlock data.
 - The runtime catalog contains more executable objects than appear in `availableOrder`.
 
