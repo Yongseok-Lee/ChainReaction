@@ -1,10 +1,12 @@
--- Prototype 1.1 runtime controller.
--- Manages keyboard-driven runtime slot edits and explicit simulation runs.
+-- Prototype 1.2 runtime controller.
+-- Manages deterministic multi-stage progression, reward selection, and runtime slot edits.
 
 local object_defs = require("src.data.objects")
 local stage_catalog = require("src.data.stage_catalog")
+local reward_catalog = require("src.data.reward_catalog")
 local SlotManager = require("src.core.slot_manager")
 local StageManager = require("src.core.stage_manager")
+local RunState = require("src.core.run_state")
 local simulator = require("src.sim.reaction_simulator")
 
 local M = {}
@@ -18,6 +20,58 @@ local function copy_array(list)
     copied[i] = value
   end
   return copied
+end
+
+local function copy_slots(slots)
+  local copied = {}
+  for i, slot in ipairs(slots) do
+    local object_key = nil
+    if type(slot) == "table" then
+      object_key = slot.objectKey
+    end
+    copied[i] = { objectKey = object_key }
+  end
+  return copied
+end
+
+local function build_effective_stage(stage, slot_bonus)
+  local base_slots = {}
+  local initial_slots = {}
+  if type(stage) == "table" and type(stage.initialSlots) == "table" then
+    initial_slots = stage.initialSlots
+  end
+
+  local initial_count = #initial_slots
+  if initial_count > 0 then
+    for i = 1, initial_count - 1 do
+      local slot = initial_slots[i]
+      local object_key = nil
+      if type(slot) == "table" then
+        object_key = slot.objectKey
+      end
+      base_slots[#base_slots + 1] = { objectKey = object_key }
+    end
+  end
+
+  for _ = 1, slot_bonus do
+    base_slots[#base_slots + 1] = { objectKey = nil }
+  end
+
+  if initial_count > 0 then
+    local final_slot = initial_slots[initial_count]
+    local final_object_key = nil
+    if type(final_slot) == "table" then
+      final_object_key = final_slot.objectKey
+    end
+    base_slots[#base_slots + 1] = { objectKey = final_object_key }
+  end
+
+  return {
+    key = stage.key,
+    targetDamage = stage.targetDamage,
+    initialSlots = base_slots,
+    allowedObjectKeys = stage.allowedObjectKeys,
+  }
 end
 
 local function resolve_object_order(defs, stage_def)
@@ -76,12 +130,15 @@ end
 
 function Runtime.new()
   local manager = StageManager.new(stage_catalog, object_defs)
+  local run_state = RunState.new(reward_catalog, stage_catalog)
   local current_stage = manager:getCurrentStage()
-  local slot_manager = SlotManager.new(current_stage)
+  local effective_stage = build_effective_stage(current_stage, run_state:getEffectiveSlotBonus())
+  local slot_manager = SlotManager.new(effective_stage)
   local selected_slot = stage_selected_slot(slot_manager)
 
   local self = {
     stage_manager = manager,
+    run_state = run_state,
     slot_manager = slot_manager,
     selected_slot_index = selected_slot,
     swap_source_index = nil,
@@ -103,7 +160,8 @@ end
 
 function Runtime:_rebuildForCurrentStage()
   local stage = self.stage_manager:getCurrentStage()
-  self.slot_manager = SlotManager.new(stage)
+  local effective_stage = build_effective_stage(stage, self.run_state:getEffectiveSlotBonus())
+  self.slot_manager = SlotManager.new(effective_stage)
   self.selected_slot_index = stage_selected_slot(self.slot_manager)
   self.swap_source_index = nil
   self.result = nil
@@ -129,20 +187,59 @@ function Runtime:handleKey(key)
   if self.phase == "run_complete" then
     if key == "t" then
       self.stage_manager:restartRun()
+      self.run_state:resetRun()
       self:_rebuildForCurrentStage()
     end
     return
   end
 
-  if key == "n" then
-    if self.phase == "resolved_clear" then
+  if self.phase == "reward_selection" then
+    if key == "left" or key == "right" then
+      local direction = key == "right" and 1 or -1
+      local ok, err = self.run_state:moveRewardSelection(direction)
+      if not ok then
+        self.last_error = err
+      else
+        self.last_error = nil
+      end
+      return
+    end
+
+    if key == "return" then
+      local _applied, err = self.run_state:confirmSelectedReward()
+      if err ~= nil then
+        self.last_error = err
+        return
+      end
+
+      self.last_error = nil
       if self.stage_manager:isLastStage() then
         self.phase = "run_complete"
+        return
+      end
+
+      local advanced = self.stage_manager:advance()
+      if advanced then
+        self.run_state:enterNextStage()
+        self:_rebuildForCurrentStage()
       else
-        local advanced = self.stage_manager:advance()
-        if advanced then
-          self:_rebuildForCurrentStage()
-        end
+        self.last_error = "Failed to advance stage."
+      end
+      return
+    end
+
+    return
+  end
+
+  if key == "n" then
+    if self.phase == "resolved_clear" then
+      local stage_key = self.stage_manager:getCurrentStageKey()
+      local ok, err = self.run_state:beginRewardSelection(stage_key)
+      if ok then
+        self.phase = "reward_selection"
+        self.last_error = nil
+      else
+        self.last_error = err
       end
     end
     return
@@ -232,6 +329,12 @@ function Runtime:getState()
   local stage_count = self.stage_manager:getStageCount()
   local run_complete = self.phase == "run_complete"
   local can_advance = self.phase == "resolved_clear"
+  local reward_options = self.run_state:getRewardOptions()
+  local selected_reward_index = self.run_state:getSelectedRewardIndex()
+  local persistent_bonus = self.run_state:getPersistentSlotBonus()
+  local pending_bonus = self.run_state:getPendingNextStageSlotBonus()
+  local temporary_bonus = self.run_state:getCurrentStageTemporarySlotBonus()
+  local effective_bonus = self.run_state:getEffectiveSlotBonus()
 
   return {
     selectedSlotIndex = self.selected_slot_index,
@@ -247,6 +350,14 @@ function Runtime:getState()
     phase = self.phase,
     runComplete = run_complete,
     canAdvance = can_advance,
+    rewardOptions = reward_options,
+    selectedRewardIndex = selected_reward_index,
+    rewardSelectionActive = self.phase == "reward_selection",
+    lastAppliedRewardKey = self.run_state:getLastAppliedRewardKey(),
+    persistentSlotBonus = persistent_bonus,
+    pendingNextStageSlotBonus = pending_bonus,
+    currentStageTemporarySlotBonus = temporary_bonus,
+    effectiveSlotBonus = effective_bonus,
   }
 end
 

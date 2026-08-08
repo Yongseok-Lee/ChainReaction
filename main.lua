@@ -1,4 +1,4 @@
--- Prototype 1.1 debug visualization entry point.
+-- Prototype 1.2 debug visualization entry point.
 
 local RunPrototype = require("src.core.run_prototype")
 
@@ -25,7 +25,7 @@ function love.load()
 end
 
 function love.update(_dt)
-  -- Stage progression is deterministic and driven by explicit input actions.
+  -- Stage and reward progression are deterministic and driven by explicit input actions.
 end
 
 function love.draw()
@@ -42,7 +42,8 @@ function love.draw()
   print_line("ChainReaction Reaction Engine Prototype")
   print_line("Controls: Left/Right select | Up/Down cycle object | Del clear")
   print_line("          S mark/swap slots | R reset slots | Space run simulation")
-  print_line("          N advance after clear | T restart run after completion")
+  print_line("          N choose reward after clear | Return confirm reward")
+  print_line("          T restart run after completion")
   print_line("")
 
   if not App.runtime then
@@ -58,6 +59,11 @@ function love.draw()
   print_line("Selected Slot: " .. to_text(view.selectedSlotIndex))
   print_line("Swap Source: " .. to_text(view.swapSourceIndex))
   print_line("Available Objects: " .. table.concat(view.objectOrder, ", "))
+  print_line("Persistent Slot Bonus: " .. to_text(view.persistentSlotBonus))
+  print_line("Current Stage Temporary Slot Bonus: " .. to_text(view.currentStageTemporarySlotBonus))
+  print_line("Pending Next Stage Slot Bonus: " .. to_text(view.pendingNextStageSlotBonus))
+  print_line("Effective Slot Bonus: " .. to_text(view.effectiveSlotBonus))
+  print_line("Last Applied Reward: " .. to_text(view.lastAppliedRewardKey))
   print_line("")
   print_line("Slots:")
   for index, slot in ipairs(view.slots) do
@@ -84,12 +90,41 @@ function love.draw()
   end
   print_line("")
 
+  if view.rewardSelectionActive then
+    print_line("Reward Selection")
+    local selected = view.selectedRewardIndex
+    local options = view.rewardOptions
+    if type(options) == "table" and #options > 0 then
+      for index, option in ipairs(options) do
+        local marker = " "
+        if selected == index then
+          marker = ">"
+        end
+        print_line(
+          string.format(
+            " %s [%d] %s | %s | +%s",
+            marker,
+            index,
+            to_text(option.label),
+            to_text(option.type),
+            to_text(option.slotDelta)
+          )
+        )
+      end
+    else
+      print_line("  (no options)")
+    end
+    print_line("")
+  end
+
   if not view.result then
     print_line("Result: not executed (press Space)")
     if view.runComplete then
       print_line("Next: Press T to restart run.")
+    elseif view.rewardSelectionActive then
+      print_line("Next: Left/Right select reward, Enter confirm.")
     elseif view.canAdvance then
-      print_line("Next: Press N to advance stage.")
+      print_line("Next: Press N to choose reward.")
     else
       print_line("Next: Edit slots, then press Space to simulate.")
     end
@@ -137,8 +172,10 @@ function love.draw()
   end
   if view.runComplete then
     print_line("Next: Run complete. Press T to restart.")
+  elseif view.rewardSelectionActive then
+    print_line("Next: Left/Right select reward, Enter confirm.")
   elseif view.canAdvance then
-    print_line("Next: Stage cleared. Press N to advance.")
+    print_line("Next: Stage cleared. Press N to choose reward.")
   elseif view.phase == "resolved_fail" then
     print_line("Next: Edit and retry (Space), or press R to reset stage.")
   else

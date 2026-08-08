@@ -1,4 +1,4 @@
-# ChainReaction - Gameplay Design v1.1
+# ChainReaction - Gameplay Design v1.2
 
 > This document is the Single Source of Truth (SSOT) for gameplay design.
 > If implementation conflicts with this document, this document takes precedence.
@@ -473,8 +473,15 @@ Implemented:
 - Keyboard Slot Editing
 - Stage Progression
 - 3 prototype stages
-- Explicit runtime phase lifecycle (`editing`, `resolved_clear`, `resolved_fail`, `run_complete`)
+- Explicit runtime phase lifecycle (`editing`, `resolved_clear`, `resolved_fail`, `reward_selection`, `run_complete`)
 - Per-stage `allowedObjectKeys` object cycling
+- Deterministic stage reward choices (two options per stage)
+- Persistent slot increase reward
+- Next-stage temporary slot increase reward
+- Run-level reward state
+- Effective-slot construction without `StageDefinition` mutation
+- Reward input gating during `reward_selection`
+- Final-stage reward application before `run_complete`
 - Ordered Multi-Attribute Execution
 - Behavior-preserving simulator modular refactor
 - Ignite
@@ -497,7 +504,7 @@ Finalized Specifications:
 - Charge
 - Echo
 
-## Stage Progression (Prototype 1.1)
+## Stage Progression (Prototype 1.1 Foundation, Active in 1.2)
 
 Implemented stages:
 
@@ -514,8 +521,9 @@ Implemented stages:
 Lifecycle:
 
 - `editing` -> `resolved_clear` or `resolved_fail` after simulation
-- `resolved_clear` + `N` -> next stage `editing`
-- final-stage `resolved_clear` + `N` -> `run_complete`
+- `resolved_clear` + `N` -> `reward_selection`
+- `reward_selection` + reward confirm -> next stage `editing`
+- final-stage `reward_selection` + reward confirm -> `run_complete`
 - `run_complete` + `T` -> stage 1 `editing`
 
 Stale-result rule:
@@ -525,13 +533,66 @@ Stale-result rule:
 Stage slot policy:
 
 - Retry preserves edited slots.
-- `R` restores current stage initial slots.
-- Advancing creates a fresh `SlotManager` from the next `StageDefinition`.
+- `R` restores current stage effective initial slots.
+- Advancing creates a fresh `SlotManager` from the next stage's effective runtime layout derived from its `StageDefinition` and active run slot bonuses.
 
 `allowedObjectKeys` policy:
 
 - Stage teaching/QA selection only.
 - Not inventory, ownership, or unlock state.
+
+## Reward System (Prototype 1.2)
+
+Reward lifecycle:
+
+- `editing` -> `resolved_clear` -> `N` -> `reward_selection` -> confirm reward -> next stage `editing`
+- final stage: `resolved_clear` -> `reward_selection` -> confirm -> `run_complete`
+
+Reward types:
+
+1. `persistent_slot_increase`
+   - +1 slot for all remaining stages in the current run
+   - survives fail/retry/reset/advance
+   - cleared only on full run restart
+2. `next_stage_slot_increase`
+   - +2 slots for the next stage only
+   - stored as pending after reward confirmation
+   - becomes current-stage temporary bonus on next-stage entry
+   - survives retry/reset within that stage
+   - expires when a later stage is entered
+
+Effective slot rule:
+
+- `effectiveSlotBonus = persistentSlotBonus + currentStageTemporarySlotBonus`
+
+Reward-added slot placement:
+
+- Reward-added slots are inserted immediately before the final initial slot.
+- The final terminal Bomb remains final.
+- `StageDefinition` is never mutated.
+
+Reward selection controls:
+
+- `N` from `resolved_clear` enters `reward_selection`.
+- `Left`/`Right` select reward option.
+- `Return` confirms reward.
+- Slot edit/sim/reset inputs are blocked during `reward_selection`.
+
+Deterministic reward policy:
+
+- Fixed two choices per stage.
+- No RNG in Prototype 1.2.
+
+Final-stage reward policy:
+
+- Final-stage reward is still selected and applied for lifecycle consistency.
+- It has no downstream gameplay effect before run restart.
+- This is explicit prototype behavior and may change later.
+
+Stage availability policy:
+
+- `stage.allowedObjectKeys` remains stage-level teaching/QA availability.
+- It is not ownership, inventory, or unlock state.
 
 ---
 
@@ -563,15 +624,30 @@ Split will be reconsidered after the linear reaction system is fully validated.
 
 Current priority:
 
-1. Reward system
-2. Upgrade acquisition/application model
-3. Run inventory / owned object model
-4. Stage clear reward transition
+1. Run inventory / object ownership model
+2. Object acquisition rewards
+3. Upgrade acquisition/application model
+4. Integrate ownership with stage allowed-object teaching rules
 5. Save/load later
+6. Shop/currency later
 
 ---
 
 # 12. Design Decisions
+
+## Prototype 1.2 Reward Scope
+
+Prototype 1.2 intentionally postpones:
+
+- Owned object state
+- Object acquisition rewards
+- Upgrade rewards
+
+Reason:
+
+- `stage.allowedObjectKeys` is stage teaching availability, not ownership.
+- Ownership and upgrade semantics should be designed together in Prototype 1.3.
+- Prototype 1.2 validates reward phase/lifetime behavior using slot-space rewards only.
 
 ## Core Attribute Roles
 
@@ -658,7 +734,7 @@ The following items are unresolved and must not be treated as finalized:
 - Whether upgrades are permanent, run-based, or object-instance based
 - Exact numerical balance values
 - Object naming/theme pass
-- Reward/upgrade/save/inventory runtime systems
+- Run inventory / object ownership / acquisition / upgrade / save runtime systems
 
 ---
 
